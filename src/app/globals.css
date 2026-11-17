@@ -1,0 +1,460 @@
+@import 'tailwindcss';
+
+/* A paper sign-up sheet on a desk: white sheets, ballpoint blue for people, highlighter for the status. */
+@theme static {
+  --color-desk: #e9ecf3;
+  --color-sheet: #ffffff;
+  --color-ink: #151b33;
+  --color-muted: #5a6282;
+  --color-line: #d5d9e6;
+  --color-pen: #2440d8;
+  --color-pen-deep: #1a2fa8;
+  --color-highlight-yellow: #ffe873;
+  --color-highlight-green: #a8f0c6;
+  --color-highlight-pink: #ffc4d2;
+  --color-danger: #b82a39;
+
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  /* The space of the scrollbar stays reserved, so the page does not jump sideways when a window opens. */
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background: var(--color-desk);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  /* Tailwind v4 leaves buttons with the default cursor. */
+  button:not(:disabled),
+  summary,
+  select,
+  label:has(input[type='radio']) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-pen);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Status written with a highlighter: uneven corners and a slight tilt, like a stroke made by hand. */
+  .highlight {
+    display: inline-block;
+    padding: 0.1em 0.55em;
+    border-radius: 0.7em 0.3em 0.8em 0.35em;
+    background-image: linear-gradient(var(--highlight-color), var(--highlight-color));
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    font-weight: 600;
+    white-space: nowrap;
+    transform: rotate(-0.8deg);
+  }
+
+  .highlight-yellow {
+    --highlight-color: var(--color-highlight-yellow);
+  }
+
+  .highlight-green {
+    --highlight-color: var(--color-highlight-green);
+  }
+
+  .highlight-pink {
+    --highlight-color: var(--color-highlight-pink);
+  }
+
+  .highlight-plain {
+    --highlight-color: var(--color-desk);
+  }
+
+  /* The stroke is drawn once, on the page of a single practice. */
+  .highlight-drawn {
+    animation: draw-highlight 0.5s 0.15s ease-out backwards;
+  }
+
+  .field-input {
+    width: 100%;
+    border: 1px solid var(--color-line);
+    border-radius: 0.75rem;
+    background: var(--color-sheet);
+    padding: 0.625rem 0.75rem;
+    color: var(--color-ink);
+  }
+
+  .field-input::placeholder {
+    color: color-mix(in srgb, var(--color-muted) 70%, transparent);
+  }
+
+  .field-input:focus-visible {
+    border-color: var(--color-pen);
+    outline-offset: 0;
+  }
+
+  .field-input[aria-invalid='true'] {
+    border-color: var(--color-danger);
+  }
+
+  /* The confirmation code reads digit by digit, the way it is copied from the email. */
+  .code-input {
+    padding-block: 0.75rem;
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.32em;
+    text-align: center;
+    /* The spacing after the last digit would push the code off center. */
+    text-indent: 0.32em;
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    padding: 0.625rem 1.125rem;
+    font-weight: 600;
+    line-height: 1.25;
+    transition:
+      background-color 0.15s,
+      border-color 0.15s;
+  }
+
+  .button:disabled {
+    opacity: 0.55;
+  }
+
+  .button-primary {
+    background: var(--color-pen);
+    color: #ffffff;
+  }
+
+  .button-primary:hover:not(:disabled) {
+    background: var(--color-pen-deep);
+  }
+
+  .button-quiet {
+    border-color: var(--color-line);
+    background: var(--color-sheet);
+    color: var(--color-ink);
+  }
+
+  .button-quiet:hover:not(:disabled) {
+    border-color: var(--color-muted);
+  }
+
+  .button-danger {
+    border-color: var(--color-danger);
+    background: var(--color-sheet);
+    color: var(--color-danger);
+  }
+
+  .button-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-danger) 8%, var(--color-sheet));
+  }
+
+  .text-link {
+    color: var(--color-pen);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  .text-link:hover {
+    color: var(--color-pen-deep);
+  }
+
+  /* The month sheet of the calendar. Every day is a ruled box that works as one big link. */
+  .calendar-day {
+    position: relative;
+    height: 3.5rem;
+    border-top: 1px solid var(--color-line);
+    padding: 0.25rem;
+    vertical-align: top;
+    transition: background-color 0.15s;
+  }
+
+  .calendar-day + .calendar-day {
+    border-left: 1px solid var(--color-line);
+  }
+
+  .calendar-day-outside {
+    background: color-mix(in srgb, var(--color-desk) 50%, var(--color-sheet));
+  }
+
+  .calendar-day:hover {
+    background: color-mix(in srgb, var(--color-desk) 70%, var(--color-sheet));
+  }
+
+  .calendar-day-selected {
+    box-shadow: inset 0 0 0 2px var(--color-ink);
+  }
+
+  .calendar-day-link {
+    display: inline-block;
+  }
+
+  .calendar-day-link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  .calendar-day-link:focus-visible {
+    outline: none;
+  }
+
+  .calendar-day-link:focus-visible::after {
+    outline: 2px solid var(--color-pen);
+    outline-offset: -2px;
+  }
+
+  .calendar-day-number {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.625rem;
+    height: 1.625rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Today is circled by hand in pen: an uneven ring, slightly turned. */
+  .calendar-today {
+    color: var(--color-pen);
+    font-weight: 700;
+  }
+
+  .calendar-today::before {
+    content: '';
+    position: absolute;
+    inset: -1px -3px;
+    border: 2px solid var(--color-pen);
+    border-radius: 58% 42% 55% 45% / 46% 58% 42% 54%;
+    transform: rotate(-8deg);
+  }
+
+  /* A practice written on its day with one stroke of highlighter. It sits above the link of the day box. */
+  .calendar-mark {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 0.35em;
+    min-width: 0;
+    border-radius: 0.55em 0.3em 0.6em 0.35em;
+    padding: 0.0625rem 0.4rem;
+    background: var(--highlight-color);
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+    transition: filter 0.15s;
+  }
+
+  /* No two strokes made by hand come out the same. */
+  li:nth-child(even) > .calendar-mark {
+    border-radius: 0.3em 0.6em 0.35em 0.55em;
+  }
+
+  .calendar-mark:hover {
+    filter: brightness(0.94);
+  }
+
+  .calendar-mark.highlight-plain {
+    color: var(--color-muted);
+  }
+
+  /* The pen dot marks a practice the viewer signed up for. Hollow means the viewer is on its waitlist. */
+  .calendar-pen-dot {
+    flex: none;
+    align-self: center;
+    display: inline-block;
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-radius: 9999px;
+    background: var(--color-pen);
+  }
+
+  .calendar-pen-dot-waiting {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--color-pen);
+  }
+
+  /* The short stroke that stands for a practice where a day box has no room for words. */
+  .calendar-stroke {
+    display: inline-block;
+    width: 0.875rem;
+    height: 0.4375rem;
+    border-radius: 0.2em 0.1em 0.2em 0.12em;
+    background: var(--highlight-color);
+    box-shadow: inset 0 0 0 1px rgb(21 27 51 / 0.12);
+  }
+
+  .calendar-stroke-mine {
+    box-shadow: inset 0 0 0 1.5px var(--color-pen);
+  }
+
+  @media (min-width: 48rem) {
+    .calendar-day {
+      height: 7.75rem;
+      padding: 0.375rem;
+    }
+  }
+
+  /* A window on top of the page. The dialog itself is the dimmed desk and the sheet inside is the window. */
+  .modal {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    padding: 1.5rem 1rem;
+    background: transparent;
+    color: inherit;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Only an open dialog gets a display value. A closed one keeps the browser's display: none. */
+  .modal[open] {
+    display: flex;
+  }
+
+  /* The backdrop does not read the theme variables in every browser, so the ink color is written out. */
+  .modal::backdrop {
+    background: rgb(21 27 51 / 0.44);
+    backdrop-filter: blur(2px);
+  }
+
+  .modal[open]::backdrop {
+    animation: desk-dims 0.26s ease-out both;
+  }
+
+  .modal[data-closing]::backdrop {
+    animation: desk-clears 0.2s ease-in both;
+  }
+
+  /* Auto margins center the sheet and still let a sheet taller than the screen scroll from its top. */
+  .modal-sheet {
+    position: relative;
+    width: 100%;
+    max-width: 27rem;
+    margin: auto;
+    border: 1px solid var(--color-line);
+    border-radius: 1.5rem;
+    background: var(--color-sheet);
+    box-shadow: 7px 7px 0 rgb(21 27 51 / 0.2);
+    overflow: clip;
+    transition: height 0.3s cubic-bezier(0.3, 0.75, 0.2, 1);
+  }
+
+  /* The last control point goes past 1, so the sheet overshoots a little and settles, like paper landing. */
+  .modal[open] .modal-sheet {
+    animation: sheet-lands 0.38s cubic-bezier(0.2, 0.85, 0.25, 1.14) both;
+  }
+
+  .modal[data-closing] .modal-sheet {
+    animation: sheet-leaves 0.2s ease-in both;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    color: var(--color-muted);
+    transition:
+      background-color 0.15s,
+      color 0.15s;
+  }
+
+  .modal-close:hover {
+    background: var(--color-desk);
+    color: var(--color-ink);
+  }
+
+  /* Each step of the window writes itself in after the sheet has taken its new size. */
+  .modal-step {
+    animation: step-appears 0.26s 0.04s ease-out both;
+  }
+}
+
+/* The page behind an open window stays still. */
+html:has(.modal[open]) {
+  overflow: hidden;
+}
+
+@keyframes draw-highlight {
+  from {
+    background-size: 0% 100%;
+  }
+}
+
+@keyframes sheet-lands {
+  from {
+    opacity: 0;
+    transform: translateY(1.75rem) rotate(-1.8deg) scale(0.97);
+  }
+}
+
+@keyframes sheet-leaves {
+  to {
+    opacity: 0;
+    transform: translateY(1.25rem) rotate(1.4deg) scale(0.98);
+  }
+}
+
+@keyframes desk-dims {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes desk-clears {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes step-appears {
+  from {
+    opacity: 0;
+    transform: translateY(0.375rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .highlight-drawn,
+  .modal-step,
+  .modal[open] .modal-sheet,
+  .modal[data-closing] .modal-sheet,
+  .modal[open]::backdrop,
+  .modal[data-closing]::backdrop {
+    animation: none;
+  }
+
+  .modal-sheet {
+    transition: none;
+  }
+}

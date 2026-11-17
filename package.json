@@ -1,0 +1,49 @@
+{
+  "name": "practices",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "prisma generate && next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "eslint",
+    "clean": "rm -rf .next",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "dev:staging": "node scripts/remote-db.mjs staging sh -c 'prisma generate && next dev'",
+    "db:staging:push": "node scripts/turso-push.mjs staging",
+    "db:staging:seed": "TEST_MODE=yes node scripts/remote-db.mjs staging sh -c 'tsx prisma/seed.ts'",
+    "db:staging:studio": "node scripts/remote-db.mjs staging prisma studio",
+    "dev:prod": "node scripts/remote-db.mjs prod sh -c 'prisma generate && next dev'",
+    "db:prod:push": "node scripts/turso-push.mjs prod",
+    "db:prod:studio": "node scripts/remote-db.mjs prod prisma studio"
+  },
+  "dependencies": {
+    "@libsql/client": "0.17.4",
+    "@prisma/adapter-libsql": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "better-auth": "^1.7.25",
+    "dotenv": "^17.4.2",
+    "lucide-react": "^1.73.0",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "resend": "^6.38.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.4.6",
+    "prettier": "^3.10.1",
+    "prisma": "7.10.1",
+    "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

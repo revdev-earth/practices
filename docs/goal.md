@@ -1,0 +1,81 @@
+# Goal
+
+## Original request
+
+The request was written in Spanish. This is a faithful translation.
+
+> Taking properties as the reference, let's build the whole app for practices. It should not be shaped by the hypnosis theme, it is for practices in general. You can decide how many participants are needed at minimum and how many at maximum, with a description and a title. We will use Turso, login, register and the rest we already know from properties, where we have a lot of experience. Let's see how far we get, using Next.js and Tailwind. Do we need Redux?
+>
+> It also has to take into account that people are in different time zones.
+
+A later instruction added that the application and its documentation are written in English.
+
+A second request, on 2026-11-16, changed how people get in. This is a faithful translation.
+
+> Instead of having pages for register, login and reset password, it has to be a modal with a nice transition when it opens and closes. When someone logs in they go to the calendar, I hope there is one, and I hope we also added the email confirmation. Let's look at properties to see how they have it.
+
+## What the app is
+
+Practices is an app for organizing group practice sessions on any topic. One person posts a practice with a date, a duration and a group size. Others join. Once the minimum is reached the practice is confirmed. Once the maximum is reached, whoever joins next goes on the waitlist and moves up when someone leaves.
+
+The starting prototype is `Práctica de hipnosis · Grupos de 4.html` in the repo root. It had a hypnosis theme and a fixed group of 4. The new app is generic and the organizer decides the group size.
+
+## What we expect
+
+Every practice has a title, a description, a date and time, a duration, a mode (online or in person), a link or place, a minimum number of participants and a maximum number of participants.
+
+Anyone with an account can post, join and leave. The organizer can edit and delete their own practice.
+
+There is registration with email confirmation, login, logout and password recovery by email. All of them happen in one window that opens on top of the landing page.
+
+After logging in a person lands on a calendar of the month with every practice on its day.
+
+Each person sees times in their own time zone, with the zone written next to the time to avoid confusion across countries.
+
+The database is SQLite locally and Turso in staging and production, with the same Prisma schema.
+
+## Decisions made
+
+Redux stays out. Data is read in Server Components and changed with Server Actions and `useActionState`. The session lives in a Better Auth cookie. The little client state that remains is covered by `useState`. Properties keeps the state of its login modal in Redux. Here the address of the page does that job.
+
+Authentication uses Better Auth with email and password and exposes no HTTP routes of its own. Everything goes through Server Actions that call `authServer.api`.
+
+Login, registration, the email code and password recovery are steps of a single window on the landing page, as in properties. The address says which step is open, for example `/?auth=login`. That makes links from emails, the back button and a reload agree with what is on screen.
+
+A new account stays closed until the person types a 6 digit code sent to its email, as in properties. The code works for 15 minutes and allows three tries. A new code can be requested once a minute. Typing the right code also opens the session.
+
+Confirming an email asks for the code and for the password of the account. The code proves who reads the inbox and the password proves who created the account. Without the second check, someone could register a stranger's email and wait for the owner to confirm it.
+
+An account that never typed its code owns nothing. Registering the same email again starts it over with the new password.
+
+Registering an email that already has a confirmed account answers that the account exists. The answer tells whether an email is registered, which is the same trade properties makes for a clearer message.
+
+There is a single kind of user. Permissions come from the relation to each practice, organizer or participant.
+
+Whoever posts a practice takes the first spot on the list.
+
+The calendar is the home of the app. The list with its filters stays one click away in the header.
+
+A practice belongs to the day it starts on in the viewer's zone. The same practice can sit on Wednesday for one person and on Thursday for another.
+
+Weeks run from Monday to Sunday, the international standard, in line with the 24 hour clock.
+
+Everything is in English, including the interface, routes, code, comments and docs.
+
+Dates are formatted with the `en-US` locale and a 24 hour clock, which reads the same in every country.
+
+## Ideas for later
+
+Email notices when a practice gets confirmed or when someone moves up from the waitlist. That needs the time zone stored on the user, because an email is built without a browser.
+
+An `.ics` file or a link to add the practice to a calendar.
+
+Private practices with an invitation link.
+
+Per participant roles or preferences, like the guide and subject roles in the prototype.
+
+Browser tests with Playwright, as in properties. The walk through script used for the checks covers the flows and can become those tests.
+
+A limit on how often one visitor can try a login or ask for a password reset. Today only the email codes are limited.
+
+A week view of the calendar for people who host many practices.

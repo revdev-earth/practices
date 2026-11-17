@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ========================================
+// PRACTICES
+// ========================================
+
+model Practice {
+  id String @id @default(cuid())
+
+  title       String
+  description String @default("")
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  mode     PracticeMode @default(ONLINE)
+  location String       @default("") // Call link or address, depending on the mode
+
+  // Reaching minParticipants confirms the practice.
+  // Whoever joins after maxParticipants is filled goes on the waitlist.
+  minParticipants Int
+  maxParticipants Int
+
+  organizerId String
+  organizer   User   @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+
+  signups Signup[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([endsAt]) // Split upcoming from past
+  @@index([startsAt]) // Read one month for the calendar
+  @@index([organizerId])
+  @@map("practices")
+}
+
+enum PracticeMode {
+  ONLINE
+  IN_PERSON
+}
+
+model Signup {
+  id String @id @default(cuid())
+
+  practiceId String
+  userId     String
+
+  // Arrival order decides who has a spot and who waits.
+  joinedAt DateTime @default(now())
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([practiceId, userId])
+  @@index([userId])
+  @@map("signups")
+}
+
+// ========================================
+// USERS AND SESSION (tables managed by Better Auth)
+// ========================================
+
+model User {
+  id String @id @default(cuid())
+
+  name          String
+  email         String  @unique
+  emailVerified Boolean @default(false)
+  image         String?
+
+  // When the last email confirmation code went out. It limits how often a new one can be requested.
+  confirmationCodeSentAt DateTime?
+
+  sessions  Session[]
+  accounts  Account[]
+  practices Practice[]
+  signups   Signup[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// The password hash lives in the account with providerId "credential".
+model Account {
+  id         String @id @default(cuid())
+  accountId  String
+  providerId String
+  userId     String
+
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+// Temporary tokens, such as the password reset one and the email confirmation code.
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verifications")
+}
