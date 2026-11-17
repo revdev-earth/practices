@@ -17,6 +17,7 @@ export type PracticeFormDefaults = {
   startsAtLocal: string
   durationMin: number
   mode: PracticeMode
+  videoRoom: boolean
   location: string
   minParticipants: number
   maxParticipants: number
@@ -51,6 +52,7 @@ const sendStartAsExactInstant = (formData: FormData) => {
 export default function PracticeForm({ action, defaults, viewerZone, submitLabel, pendingLabel, cancelHref, onCancel }: PracticeFormProps) {
   const { state, onSubmit, isPending } = useFormAction(action, initialState, sendStartAsExactInstant)
   const [mode, setMode] = useState<PracticeMode>(defaults.mode)
+  const [usesRoom, setUsesRoom] = useState(defaults.videoRoom)
   const errors = state.errors ?? {}
   const locationField = LOCATION_FIELD[mode]
   const { title, description, location, participants } = PRACTICE_LIMITS
@@ -133,19 +135,53 @@ export default function PracticeForm({ action, defaults, viewerZone, submitLabel
         {errors.mode && <p className="mt-1.5 text-sm font-medium text-danger">{errors.mode[0]}</p>}
       </fieldset>
 
-      <Field label={locationField.label} htmlFor="location" hint={locationField.hint} error={errors.location?.[0]}>
-        <input
-          id="location"
-          name="location"
-          type="text"
-          defaultValue={defaults.location}
-          maxLength={location.max}
-          placeholder={locationField.placeholder}
-          aria-invalid={Boolean(errors.location)}
-          aria-describedby={errors.location ? 'location-error' : 'location-hint'}
-          className="field-input"
-        />
-      </Field>
+      {mode === 'ONLINE' && (
+        <fieldset>
+          <legend className="mb-1.5 text-sm font-semibold">Video call</legend>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: true, label: 'Practices room' },
+              { value: false, label: 'My own link' },
+            ].map((option) => (
+              <label
+                key={option.label}
+                className="flex items-center gap-2 rounded-lg border border-line bg-sheet px-3.5 py-2.5 font-medium has-checked:border-pen has-checked:text-pen has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-pen"
+              >
+                <input
+                  type="radio"
+                  name="callChoice"
+                  checked={usesRoom === option.value}
+                  onChange={() => setUsesRoom(option.value)}
+                  className="accent-pen"
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+          <p className="mt-1.5 text-sm text-muted">
+            {usesRoom
+              ? 'A room with cameras and voice is created for this practice, sized to the maximum group. It can also be added later by editing.'
+              : 'Use the link of any other video service.'}
+          </p>
+        </fieldset>
+      )}
+      {mode === 'ONLINE' && usesRoom && <input type="hidden" name="videoRoom" value="yes" />}
+
+      {!(mode === 'ONLINE' && usesRoom) && (
+        <Field label={locationField.label} htmlFor="location" hint={locationField.hint} error={errors.location?.[0]}>
+          <input
+            id="location"
+            name="location"
+            type="text"
+            defaultValue={defaults.location}
+            maxLength={location.max}
+            placeholder={locationField.placeholder}
+            aria-invalid={Boolean(errors.location)}
+            aria-describedby={errors.location ? 'location-error' : 'location-hint'}
+            className="field-input"
+          />
+        </Field>
+      )}
 
       <div className="grid gap-6 sm:grid-cols-2">
         <Field

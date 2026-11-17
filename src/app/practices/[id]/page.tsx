@@ -15,7 +15,6 @@ import { getTimeZone } from '+/lib/timezone'
 import CopySummaryButton from '../_/CopySummaryButton'
 import EditablePractice from '../_/EditablePractice'
 import type { PracticeFormDefaults } from '../_/PracticeForm'
-import DeletePracticeButton from '../_/DeletePracticeButton'
 import MembershipButton from '../_/MembershipButton'
 import Roster from '../_/Roster'
 
@@ -30,12 +29,15 @@ const DETAIL_LABEL = 'text-sm font-semibold text-muted sm:pt-0.5'
 const timeRange = (practice: PracticeView, timeZone: string) =>
   `${formatTime(practice.startsAt, timeZone)} to ${formatTime(practice.endsAt, timeZone)} (${formatZone(practice.startsAt, timeZone)})`
 
+// The room of the practice in lives when it has one, else what the host typed.
+const where = (practice: PracticeView) => (practice.roomAvailable ? `${appUrl()}/practices/${practice.id}/room` : practice.location)
+
 // Text for the group chat. The time carries the zone of whoever copies it and the link shows it to each person in their own.
 const shareableSummary = (practice: PracticeView, timeZone: string) =>
   [
     practice.title,
     `${formatLongDate(practice.startsAt, timeZone)}, ${timeRange(practice, timeZone)}`,
-    practice.location ? `${MODE_LABELS[practice.mode]}: ${practice.location}` : MODE_LABELS[practice.mode],
+    where(practice) ? `${MODE_LABELS[practice.mode]}: ${where(practice)}` : MODE_LABELS[practice.mode],
     `Group (${practice.confirmed.length} of ${practice.maxParticipants}): ${practice.confirmed.map((person) => person.name).join(', ')}`,
     `See it in your own time zone: ${appUrl()}/practices/${practice.id}`,
   ].join('\n')
@@ -66,6 +68,7 @@ export default async function PracticePage({ params }: PracticePageProps) {
     durationMin: practice.durationMin,
     mode: practice.mode,
     location: practice.location,
+    videoRoom: practice.videoRoom,
     minParticipants: practice.minParticipants,
     maxParticipants: practice.maxParticipants,
   }
@@ -84,6 +87,8 @@ export default async function PracticePage({ params }: PracticePageProps) {
       <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <article className="rounded-xl border border-line bg-sheet p-6 sm:p-8">
           <EditablePractice
+            practiceId={practice.id}
+            canDelete={practice.viewer.isOrganizer}
             canEdit={practice.viewer.isOrganizer && !isPast}
             statusMark={<StatusMark practice={practice} drawn />}
             action={updatePracticeAction.bind(null, practice.id)}
@@ -109,7 +114,13 @@ export default async function PracticePage({ params }: PracticePageProps) {
                     <dt className={DETAIL_LABEL}>Where</dt>
                     <dd>
                       <p className="font-semibold">{MODE_LABELS[practice.mode]}</p>
-                      {isWebLink(practice.location) ? (
+                      {practice.roomAvailable ? (
+                        <Link href={`/practices/${practice.id}/room`} className="button button-primary mt-2">
+                          Open the Practices room
+                        </Link>
+                      ) : practice.videoRoom ? (
+                        <p className="text-sm text-muted">The Practices room is not available right now.</p>
+                      ) : isWebLink(practice.location) ? (
                         <a href={practice.location} target="_blank" rel="noopener noreferrer" className="text-link break-all">
                           {practice.location}
                         </a>
@@ -147,12 +158,6 @@ export default async function PracticePage({ params }: PracticePageProps) {
                   <CopySummaryButton summary={shareableSummary(practice, timeZone)} />
                 </div>
               </>
-            )}
-
-            {practice.viewer.isOrganizer && (
-              <div className="mt-6 flex flex-wrap items-start gap-3 border-t border-line pt-6">
-                <DeletePracticeButton practiceId={practice.id} />
-              </div>
             )}
           </div>
         </article>

@@ -1,5 +1,6 @@
 import type { Prisma } from '+/generated/prisma/client'
 import { practiceStatus, type PracticeMode, type PracticeStatus } from '+/lib/practiceRules'
+import { videoRoomsConfigured } from '+/lib/livekit'
 import { prisma } from '+/lib/prisma'
 
 const practiceInclude = {
@@ -28,6 +29,10 @@ export type PracticeView = {
   durationMin: number
   mode: PracticeMode
   location: string
+  // Whether the video room can be offered: the host chose it and the video service is configured.
+  roomAvailable: boolean
+  // The host chose a room of the video service. It stays true even while the service is not configured.
+  videoRoom: boolean
   minParticipants: number
   maxParticipants: number
   organizer: { id: string; name: string }
@@ -63,6 +68,8 @@ const toPracticeView = (practice: PracticeRecord, viewerId: string, now: Date): 
     durationMin: Math.round((practice.endsAt.getTime() - practice.startsAt.getTime()) / 60000),
     mode: practice.mode,
     location: practice.location,
+    videoRoom: practice.mode === 'ONLINE' && practice.videoRoom,
+    roomAvailable: practice.mode === 'ONLINE' && practice.videoRoom && videoRoomsConfigured,
     minParticipants: practice.minParticipants,
     maxParticipants: practice.maxParticipants,
     organizer: practice.organizer,

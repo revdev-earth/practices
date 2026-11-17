@@ -16,6 +16,7 @@ Last updated on 2026-11-16.
 - [x] `/calendar`, the month with every practice on its day and the agenda of the selected day. It is where a person lands after logging in
 - [x] `/practices` with views
 - [x] `/practices/new`, which also opens on a day picked in the calendar, and the form shared with editing
+- [x] Video rooms for online practices with LiveKit, at `/practices/[id]/room`, tested with fake cameras. The form offers Practices room or My own link
 - [x] `/practices/[id]` with the sign-up sheet, waitlist, join, leave and copy summary
 - [x] Editing in place on `/practices/[id]`, with a pencil in the header of the sheet. The `/edit` route no longer exists
 - [x] Error page and not found page
@@ -51,6 +52,7 @@ Still unchecked, because they need accounts that do not exist yet: the scripts a
 
 - [ ] Create the Turso databases for staging and production and fill in `STAGING_*` and `PROD_*` in `.env`
 - [ ] Set `RESEND_API_KEY` and `FROM_EMAIL`. They are now required outside development: without them the confirmation code is never sent and nobody can finish a registration
+- [ ] Create a LiveKit Cloud project and set `NEXT_PUBLIC_LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` in staging and production. Without them the Practices room is not offered
 - [ ] First commit. The repo has no commits yet. Almost everything is staged and the last edits of 2026-11-16 are not, so `git add -A` comes before committing
 
 ## Notes for the next session

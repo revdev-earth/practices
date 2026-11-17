@@ -40,6 +40,11 @@ export const practiceSchema = z
     startsAt: z.iso.datetime({ error: 'Pick a date and a time' }).transform((value) => new Date(value)),
     durationMin: z.coerce.number().refine((value) => DURATION_OPTIONS.includes(value), 'Pick a duration from the list'),
     mode: z.enum(PRACTICE_MODES, { error: 'Pick online or in person' }),
+    // "yes" when the online practice uses a room of the video service.
+    videoRoom: z
+      .string()
+      .optional()
+      .transform((value) => value === 'yes'),
     location: z.string().trim().max(location.max, `It can have up to ${location.max} characters`),
     minParticipants: participantCount('minimum'),
     maxParticipants: participantCount('maximum'),

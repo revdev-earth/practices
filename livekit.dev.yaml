@@ -1,0 +1,15 @@
+# LiveKit server for local development. Do not use in production: these keys are public and are in the repository on purpose.
+port: 7880
+
+rtc:
+  # A single UDP port instead of a range: publishing thousands of ports on Docker Desktop takes forever and one is enough.
+  udp_port: 7882
+  tcp_port: 7881
+  # Everything runs on the same machine, no need to discover the public IP.
+  use_external_ip: false
+
+keys:
+  devkey: dev-secret-for-practices-not-secret-000
+
+logging:
+  level: info

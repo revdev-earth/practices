@@ -1,59 +1,63 @@
 # Practices
 
-App para organizar prácticas en grupo sobre cualquier tema. Una persona publica una práctica con fecha, duración y tamaño de grupo. Otras se apuntan. Con el mínimo, la práctica queda confirmada. Con el máximo lleno, quien llega entra a la lista de espera y sube cuando alguien sale.
+An app for organizing group practice sessions on any topic. One person posts a practice with a date, a duration and a group size. Others join. Once the minimum is reached the practice is confirmed. Once the maximum is reached, whoever joins next goes on the waitlist and moves up when someone leaves.
 
-Cada persona ve las horas en su propia zona horaria.
+Everyone sees times in their own time zone.
 
-## Qué incluye
+## What it includes
 
-- Registro con código de confirmación de 6 dígitos por email, login, logout y recuperación de contraseña. Todo ocurre en una ventana sobre la portada.
-- Calendario mensual donde aterriza quien inicia sesión, con cada práctica en su día.
-- Lista de prácticas con vistas: próximas, por completar, confirmadas, mías y pasadas.
-- Detalle con hoja de inscripción, lista de espera, unirse, salir, copiar resumen y edición en el mismo lugar con el lápiz.
+- Registration with a 6 digit email confirmation code, login, logout and password recovery. All of it happens in one window on top of the landing page.
+- A monthly calendar where people land after logging in, with every practice on its day.
+- A list of practices with views: upcoming, needs people, confirmed, mine and past.
+- Video rooms for online practices, built with LiveKit. Only people with a confirmed spot get in.
+- A practice page with the sign-up sheet, waitlist, join, leave, copy summary, and editing and deleting in place from the icons in its header.
 
 ## Stack
 
-Next.js 16, React 19, TypeScript, Tailwind CSS 4, Prisma 7 con libSQL, Better Auth, Zod 4, Resend y pnpm. Sin Redux.
+Next.js 16, React 19, TypeScript, Tailwind CSS 4, Prisma 7 with libSQL, Better Auth, Zod 4, Resend, LiveKit and pnpm. No Redux.
 
-## Puesta en marcha
+## Getting started
 
 ```bash
-cp .env.example .env   # completa BETTER_AUTH_SECRET y SEED_PASSWORD
+cp .env.example .env   # fill in BETTER_AUTH_SECRET and SEED_PASSWORD
 pnpm install
 pnpm db:push && pnpm db:seed
 pnpm dev               # http://localhost:3000
 ```
 
-Los usuarios demo comparten la contraseña de `SEED_PASSWORD`, por ejemplo `dana@practices.test`. En desarrollo la ventana de login ofrece un botón para rellenarlos con un clic.
+The demo users share the password in `SEED_PASSWORD`, for example `dana@practices.test`. In development the login window has a button that fills them in with one click.
 
-Sin `RESEND_API_KEY`, en desarrollo el código de confirmación y el enlace de recuperación se imprimen en la terminal del servidor.
+Without `RESEND_API_KEY`, in development the confirmation code and the password reset link are printed in the server terminal.
+
+For the video rooms, run `pnpm livekit` in another terminal. It starts a local LiveKit server in Docker with the development keys that `.env.example` already lists.
 
 ## Scripts
 
-| Comando | Qué hace |
-|---------|----------|
-| `pnpm dev` | Servidor de desarrollo con la base local |
-| `pnpm build` | Build de producción |
+| Command | What it does |
+|---------|--------------|
+| `pnpm dev` | Development server with the local database |
+| `pnpm build` | Production build |
 | `pnpm lint` | ESLint |
-| `pnpm db:push` | Sincroniza el esquema con la base local |
-| `pnpm db:seed` | Borra la base local y carga usuarios y prácticas de demo |
+| `pnpm db:push` | Syncs the schema with the local database |
+| `pnpm db:seed` | Wipes the local database and loads demo users and practices |
+| `pnpm livekit` | Local LiveKit server in Docker, to try the video rooms |
 | `pnpm db:studio` | Prisma Studio |
-| `pnpm dev:staging` y `pnpm dev:prod` | Servidor apuntando a Turso de staging o producción |
-| `pnpm db:staging:push` y `pnpm db:prod:push` | Crean las tablas y columnas que falten en Turso. Solo añaden |
-| `pnpm db:staging:seed` | Carga datos de demo en staging. Producción nunca se siembra |
+| `pnpm dev:staging` and `pnpm dev:prod` | Development server pointed at the staging or production Turso database |
+| `pnpm db:staging:push` and `pnpm db:prod:push` | Create the tables and columns Turso is missing. They only add |
+| `pnpm db:staging:seed` | Loads demo data into staging. Production is never seeded |
 
-`pnpm dev:prod` escribe en la base de producción. Con una base remota recién creada hace falta correr antes el `push` correspondiente, o las consultas fallan con `no such table`.
+`pnpm dev:prod` writes to the production database. A newly created remote database needs its `push` first, or every query fails with `no such table`.
 
-## Despliegue
+## Deployment
 
-Vercel ejecuta `scripts/vercel-build.mjs`: genera el cliente, sincroniza el esquema en Turso y compila. Variables necesarias por entorno:
+Vercel runs `scripts/vercel-build.mjs`, which generates the client, syncs the schema in Turso and builds. Variables needed per environment:
 
-`DATABASE_URL`, `DATABASE_AUTH_TOKEN`, `BETTER_AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`, `RESEND_API_KEY` y `FROM_EMAIL`.
+`PROD_DATABASE_URL` and `PROD_DATABASE_AUTH_TOKEN` in production (`STAGING_*` in previews), `BETTER_AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`, `RESEND_API_KEY`, `FROM_EMAIL`, `NEXT_PUBLIC_LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`.
 
-Sin las dos últimas nadie puede terminar un registro, porque el código nunca llega.
+Without `RESEND_API_KEY` and `FROM_EMAIL` nobody can finish a registration, because the code never arrives. Without the three LiveKit values the video room is not offered and the rest of the app works as usual.
 
-## Documentación
+## Documentation
 
-Está en [docs/](docs/README.md). Para retomar el trabajo, empieza por [docs/status.md](docs/status.md).
+It lives in [docs/](docs/README.md). To resume work, start with [docs/status.md](docs/status.md).
 
-El proyecto de referencia es `properties`, en `/Users/rev/dev/properties`.
+The reference project is `properties`, in `/Users/rev/dev/properties`.

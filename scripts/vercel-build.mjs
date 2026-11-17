@@ -11,6 +11,14 @@ const run = (cmd, args, extraEnv = {}) => {
 }
 
 const vercelEnv = process.env.VERCEL_ENV ?? 'local'
+
+// The database comes from PROD_* in production and STAGING_* in a preview, like in .env. The commands below read DATABASE_*,
+// so they are filled in here. The app resolves it by itself at runtime (see src/lib/databaseEnv.ts).
+const prefix = { production: 'PROD', preview: 'STAGING' }[vercelEnv]
+if (prefix) {
+  process.env.DATABASE_URL = process.env[`${prefix}_DATABASE_URL`] || process.env.DATABASE_URL
+  process.env.DATABASE_AUTH_TOKEN = process.env[`${prefix}_DATABASE_AUTH_TOKEN`] || process.env.DATABASE_AUTH_TOKEN
+}
 const branch = process.env.VERCEL_GIT_COMMIT_REF ?? ''
 const seedsDemoData = vercelEnv === 'preview' && branch === 'staging'
 

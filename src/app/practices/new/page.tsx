@@ -43,6 +43,7 @@ export default async function NewPracticePage({ searchParams }: NewPracticePageP
     startsAtLocal: suggestedStart(requestedDay, now, timeZone),
     durationMin: 60,
     mode: 'ONLINE',
+    videoRoom: true,
     location: '',
     minParticipants: 3,
     maxParticipants: 6,

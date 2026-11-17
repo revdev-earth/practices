@@ -29,6 +29,7 @@ const parsePracticeForm = (formData: FormData) => {
     startsAt: text('startsAt'),
     durationMin: text('durationMin'),
     mode: text('mode'),
+    videoRoom: text('videoRoom'),
     location: text('location'),
     minParticipants: text('minParticipants'),
     maxParticipants: text('maxParticipants'),

@@ -18,14 +18,19 @@
     "db:staging:studio": "node scripts/remote-db.mjs staging prisma studio",
     "dev:prod": "node scripts/remote-db.mjs prod sh -c 'prisma generate && next dev'",
     "db:prod:push": "node scripts/turso-push.mjs prod",
-    "db:prod:studio": "node scripts/remote-db.mjs prod prisma studio"
+    "db:prod:studio": "node scripts/remote-db.mjs prod prisma studio",
+    "livekit": "node scripts/livekit.mjs"
   },
   "dependencies": {
     "@libsql/client": "0.17.4",
+    "@livekit/components-react": "^2.9.25",
+    "@livekit/components-styles": "^1.2.0",
     "@prisma/adapter-libsql": "7.10.1",
     "@prisma/client": "7.10.1",
     "better-auth": "^1.7.25",
     "dotenv": "^17.4.2",
+    "livekit-client": "^2.24.1",
+    "livekit-server-sdk": "^2.20.0",
     "lucide-react": "^1.73.0",
     "next": "16.4.6",
     "react": "19.3.1",

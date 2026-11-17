@@ -21,6 +21,7 @@ Browser (React)
 | `/practices` | List with views | Session |
 | `/practices/new` | Post a practice | Session |
 | `/practices/[id]` | Detail, sign-up sheet, join, leave and edit in place by the organizer | Session |
+| `/practices/[id]/room` | Video room of an online practice, only for people with a confirmed spot | Session |
 
 `/` is the only public page. `src/proxy.ts` checks the session cookie and sends anyone without it to `/?auth=login&next=…`, which opens the login step of the account window and remembers the destination. Every private page validates the real session with `requireUser()`. Every Server Action validates it with `getUser()`.
 
@@ -132,7 +133,19 @@ Prettier uses 150 columns, single quotes and no semicolons.
 
 `pnpm db:push` syncs the local database. `pnpm db:staging:push` and `pnpm db:prod:push` sync Turso through `scripts/turso-push.mjs`, which only applies additive changes. `scripts/remote-db.mjs` runs any command against staging or production with the `STAGING_*` and `PROD_*` variables from `.env`.
 
+On Vercel the database is chosen by the environment, in `src/lib/databaseEnv.ts`. Production reads `PROD_DATABASE_URL` and `PROD_DATABASE_AUTH_TOKEN`, a preview reads the `STAGING_*` pair, and `DATABASE_URL` stays as a fallback. The build script repeats that rule for its own commands.
+
 On Vercel the build runs `scripts/vercel-build.mjs`, which generates the client, syncs the schema and compiles. Only the `staging` branch seeds demo data.
+
+## Video rooms
+
+An online practice can use a room of its own instead of an external link. The choice is `Practice.videoRoom`. The address of the room is never stored, it is always `/practices/[id]/room`.
+
+The rooms run on LiveKit, the same service the `lives` project uses. `src/lib/livekit.ts` creates the room with the size limit of the practice, so LiveKit enforces the maximum and nine people pressing the button at once cannot overfill a room of eight. It also signs a pass for one person, valid until the practice ends.
+
+`/practices/[id]/room` gives a pass only to people with a confirmed spot, from 15 minutes before the start until the end. The waitlist, people who did not join and people outside the practice see a message instead. `VideoRoom` draws the call with the LiveKit components: cameras, microphone, screen share and chat.
+
+Without the three `LIVEKIT` variables the practices keep working and the room button says it is not available. In development `pnpm livekit` starts a local server in Docker with public development keys from `livekit.dev.yaml`. In production the values come from a LiveKit Cloud project.
 
 ## Email
 

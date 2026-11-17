@@ -64,6 +64,8 @@ Everything is in English, including the interface, routes, code, comments and do
 
 Dates are formatted with the `en-US` locale and a 24 hour clock, which reads the same in every country.
 
+A third request, on 2026-11-17, asked for rooms inside the app. Online practices can use a room of their own, built with LiveKit as in the `lives` project, or an external link. Only people with a confirmed spot enter. The room opens 15 minutes before the start and closes when the practice ends.
+
 ## Ideas for later
 
 Email notices when a practice gets confirmed or when someone moves up from the waitlist. That needs the time zone stored on the user, because an email is built without a browser.

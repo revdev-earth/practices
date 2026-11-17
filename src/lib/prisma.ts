@@ -1,10 +1,11 @@
 import 'dotenv/config'
 import { PrismaClient } from '+/generated/prisma/client'
 import { PrismaLibSql } from '@prisma/adapter-libsql'
+import { resolveDatabase } from './databaseEnv'
 
-const databaseUrl = process.env.DATABASE_URL
+const { url: databaseUrl, authToken: databaseAuthToken } = resolveDatabase()
 
-if (!databaseUrl) throw new Error('DATABASE_URL is not configured')
+if (!databaseUrl) throw new Error('The database is not configured: set DATABASE_URL, or PROD_DATABASE_URL on Vercel production')
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -18,7 +19,7 @@ const reusableClient = globalForPrisma.prisma instanceof PrismaClient ? globalFo
 // Local uses a file (file:) and production uses Turso (libsql://) with its token.
 const createClient = () =>
   new PrismaClient({
-    adapter: new PrismaLibSql({ url: databaseUrl, authToken: process.env.DATABASE_AUTH_TOKEN || undefined }),
+    adapter: new PrismaLibSql({ url: databaseUrl, authToken: databaseAuthToken }),
     log: ['error', 'warn'],
   })
 
