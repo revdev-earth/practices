@@ -169,14 +169,17 @@ export const rememberTimeZone = async (userId: string) => {
 // The host posted the practice at a time chosen in a poll. Whoever said yes with an account is already on the sheet,
 // and whoever said if needed is told the time so they can join.
 export const noticePollDecision = async (practiceId: string, optionId: string, organizerId: string) => {
-  const [sheet, votes] = await Promise.all([
+  const [sheet, votes, option] = await Promise.all([
     readSheet(practiceId),
     prisma.timePollVote.findMany({
       where: { optionId, answer: 'IF_NEEDED', user: { isNot: null } },
       select: { user: { select: personSelect } },
     }),
+    prisma.timePollOption.findUnique({ where: { id: optionId }, select: { day: true } }),
   ])
   if (!sheet) return
+  // A poll of days asked for the day, a poll of times for the exact time.
+  const choice = option?.day ? 'a day' : 'a time'
 
   const confirmedIds = new Set(sheet.confirmed.map((person) => person.id))
   const notices: (() => Promise<void>)[] = []
@@ -188,7 +191,7 @@ export const noticePollDecision = async (practiceId: string, optionId: string, o
       sendPracticeNotice({
         kind: 'poll decided',
         to: person.email,
-        subject: `${sheet.title} is set for a time you said yes to`,
+        subject: `${sheet.title} is set for ${choice} you said yes to`,
         heading: 'The time is chosen',
         paragraphs: [
           `The host chose a time for ${sheet.title} and you said yes to it.`,
@@ -208,7 +211,7 @@ export const noticePollDecision = async (practiceId: string, optionId: string, o
       sendPracticeNotice({
         kind: 'poll decided',
         to: user.email,
-        subject: `${sheet.title} is set for a time you could make`,
+        subject: `${sheet.title} is set for ${choice} you could make`,
         heading: 'The time is chosen',
         paragraphs: [
           `The host chose a time for ${sheet.title}. You said it works if needed.`,

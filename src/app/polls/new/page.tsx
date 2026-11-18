@@ -18,8 +18,8 @@ export default async function NewPollPage() {
       <div className="mx-auto max-w-2xl">
         <h1 className="font-display text-4xl font-bold tracking-tight">Find a time</h1>
         <p className="mt-2 text-muted">
-          Propose a few times and share the link. Each person answers yes, if needed or no, with or without an account. Then you post the practice at
-          the time that works.
+          Propose a few days or times and share the link. Each person answers yes, if needed or no, with or without an account. Then you post the
+          practice on the one that works.
         </p>
 
         <div className="mt-8 rounded-xl border border-line bg-sheet p-6 sm:p-8">

@@ -1,34 +1,18 @@
 'use client'
 
-import { Check, Copy, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { useState, useTransition } from 'react'
 
 import { deleteTimePollAction } from '+/actions/polls'
 
-// What the host does with the poll besides choosing the time: share the link and delete the poll.
-export default function PollHostTools({ pollId, shareUrl }: { pollId: string; shareUrl: string }) {
-  const [copied, setCopied] = useState(false)
+// Deleting the poll, which only the host can do.
+export default function PollHostTools({ pollId }: { pollId: string }) {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2500)
-    } catch {
-      setError('This browser blocked the copy. The link is the address of this page.')
-    }
-  }
-
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button type="button" onClick={copyLink} className="button button-quiet">
-        {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
-        <span aria-live="polite">{copied ? 'Link copied' : 'Copy the link to share'}</span>
-      </button>
-
       {isConfirmingDelete ? (
         <>
           <span className="text-sm font-semibold">Delete the poll and every answer?</span>

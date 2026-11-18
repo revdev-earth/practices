@@ -196,9 +196,14 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
               {canPostOnSelectedDay ? 'Nothing is scheduled on this day yet.' : 'Nothing was scheduled on this day.'}
             </p>
             {canPostOnSelectedDay && (
-              <Link href={`/practices/new?day=${selectedDay}`} className="button button-primary mt-5">
-                Post a practice on this day
-              </Link>
+              <div className="mt-5 flex flex-wrap justify-center gap-3">
+                <Link href={`/practices/new?day=${selectedDay}`} className="button button-primary">
+                  Post a practice on this day
+                </Link>
+                <Link href="/polls/new" className="button button-quiet">
+                  Find a time with a poll
+                </Link>
+              </div>
             )}
           </div>
         ) : (

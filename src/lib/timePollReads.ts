@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 
 import { getUser, type SessionUser } from '+/lib/auth'
 import { prisma } from '+/lib/prisma'
-import { bestOptionIds, POLL_VOTER_COOKIE, type PollAnswer } from '+/lib/timePolls'
+import { bestOptionIds, POLL_VOTER_COOKIE, type PollAnswer, type PollKind } from '+/lib/timePolls'
 
 // Who is answering: the account when there is a session, else the guest cookie of this browser. Null for a guest who never answered.
 export const currentPollVoter = async (): Promise<{ key: string | null; user: SessionUser | null }> => {
@@ -16,6 +16,8 @@ export const currentPollVoter = async (): Promise<{ key: string | null; user: Se
 
 export type PollOptionView = {
   id: string
+  // The calendar date of an option of a day poll.
+  day: string | null
   startsAt: Date
   endsAt: Date
   tally: { yes: number; ifNeeded: number; no: number }
@@ -36,6 +38,7 @@ export type TimePollView = {
   title: string
   description: string
   durationMin: number
+  kind: PollKind
   organizer: { id: string; name: string }
   isOrganizer: boolean
   // Sorted by time.
@@ -79,6 +82,7 @@ export const getTimePoll = async (pollId: string, viewer: { key: string | null; 
     const count = (answer: PollAnswer) => option.votes.filter((vote) => vote.answer === answer).length
     return {
       id: option.id,
+      day: option.day,
       startsAt: option.startsAt,
       endsAt: new Date(option.startsAt.getTime() + poll.durationMin * 60_000),
       tally: { yes: count('YES'), ifNeeded: count('IF_NEEDED'), no: count('NO') },
@@ -93,6 +97,7 @@ export const getTimePoll = async (pollId: string, viewer: { key: string | null; 
     title: poll.title,
     description: poll.description,
     durationMin: poll.durationMin,
+    kind: poll.kind,
     organizer: poll.organizer,
     isOrganizer: viewer.user?.id === poll.organizerId,
     options,
@@ -110,7 +115,8 @@ export type PollSummary = {
   voterCount: number
   isOrganizer: boolean
   practiceId: string | null
-  firstOptionAt: Date | null
+  kind: PollKind
+  firstOption: { startsAt: Date; day: string | null } | null
 }
 
 // The polls a person hosts and the ones they answered, newest first.
@@ -119,7 +125,7 @@ export const getPollsOf = async (userId: string): Promise<PollSummary[]> => {
     where: { OR: [{ organizerId: userId }, { options: { some: { votes: { some: { userId } } } } }] },
     orderBy: { createdAt: 'desc' },
     take: 100,
-    include: { options: { orderBy: { startsAt: 'asc' }, select: { startsAt: true, votes: { select: { voterKey: true } } } } },
+    include: { options: { orderBy: { startsAt: 'asc' }, select: { startsAt: true, day: true, votes: { select: { voterKey: true } } } } },
   })
   return polls.map((poll) => ({
     id: poll.id,
@@ -128,6 +134,7 @@ export const getPollsOf = async (userId: string): Promise<PollSummary[]> => {
     voterCount: new Set(poll.options.flatMap((option) => option.votes.map((vote) => vote.voterKey))).size,
     isOrganizer: poll.organizerId === userId,
     practiceId: poll.practiceId,
-    firstOptionAt: poll.options[0]?.startsAt ?? null,
+    kind: poll.kind,
+    firstOption: poll.options[0] ?? null,
   }))
 }

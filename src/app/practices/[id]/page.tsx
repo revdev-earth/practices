@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import AddToCalendar from '+/components/AddToCalendar'
+import ShareButton from '+/components/ShareButton'
 import StatusMark from '+/components/StatusMark'
 import { updatePracticeAction } from '+/actions/practices'
 import { requireUser } from '+/lib/auth'
@@ -173,8 +174,18 @@ export default async function PracticePage({ params }: PracticePageProps) {
                 {placeText && <p className="mb-4 text-sm font-medium">{placeText}</p>}
                 <div className="flex flex-wrap items-start gap-3">
                   <MembershipButton practiceId={practice.id} place={practice.viewer.place} isFull={practice.status === 'full'} />
+                  <ShareButton
+                    url={absoluteUrl(shareablePracticePath(practice))}
+                    title={practice.title}
+                    text={`${practice.title}, ${formatLongDate(practice.startsAt, timeZone)}. See it in your own time zone:`}
+                  />
                   <CopySummaryButton summary={shareableSummary(practice, timeZone)} />
                 </div>
+                <p className="mt-2 text-sm text-muted">
+                  {practice.isPublic
+                    ? 'The link opens for anyone, with no account.'
+                    : 'The practice is private, so the link asks for an account. Make it public with the pencil to share it with anyone.'}
+                </p>
                 <AddToCalendar practice={practice} audience="member" icsHref={`/practices/${practice.id}/event.ics`} className="mt-5" />
               </>
             )}

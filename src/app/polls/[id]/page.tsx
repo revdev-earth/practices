@@ -5,8 +5,19 @@ import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 
 import AppShell from '+/components/AppShell'
+import ShareButton from '+/components/ShareButton'
 import Wordmark from '+/components/Wordmark'
-import { formatDuration, formatLongDate, formatShortDateTime, formatTime, formatZone, formatZoneCity } from '+/lib/dates'
+import {
+  dayKey,
+  formatDayKey,
+  formatDuration,
+  formatLongDate,
+  formatShortDateTime,
+  formatShortDayKey,
+  formatTime,
+  formatZone,
+  formatZoneCity,
+} from '+/lib/dates'
 import { prisma } from '+/lib/prisma'
 import { absoluteUrl, authModalPath, pollPath, shareablePracticePath } from '+/lib/redirects'
 import { getTimeZone } from '+/lib/timezone'
@@ -68,8 +79,13 @@ export default async function PollPage({ params }: PollPageProps) {
     : null
   const isOpen = !practice
   const viewerRow = poll.voters.find((row) => row.isViewer)
-  const optionLabel = (option: { startsAt: Date; endsAt: Date }) =>
+  const today = dayKey(new Date(), timeZone)
+  const timeLabel = (option: { startsAt: Date; endsAt: Date }) =>
     `${formatLongDate(option.startsAt, timeZone)}, ${formatTime(option.startsAt, timeZone)} to ${formatTime(option.endsAt, timeZone)} (${formatZone(option.startsAt, timeZone)})`
+  // A day is the same date for everyone. A time is shown in the zone of whoever looks.
+  const optionLabel = (option: PollOptionView) => (option.day ? formatDayKey(option.day, today) : timeLabel(option))
+  const shortLabel = (option: PollOptionView) => (option.day ? formatShortDayKey(option.day) : formatShortDateTime(option.startsAt, timeZone))
+  const isAhead = (option: PollOptionView) => (option.day ? option.day >= today : option.startsAt > new Date())
 
   return (
     <PollFrame signedIn={Boolean(voter.user)} pollId={poll.id}>
@@ -85,29 +101,38 @@ export default async function PollPage({ params }: PollPageProps) {
           <p className="text-sm font-semibold text-muted">Finding a time</p>
           <h1 className="mt-1 font-display text-4xl leading-tight font-bold tracking-tight text-balance">{poll.title}</h1>
           <p className="mt-3 text-sm text-muted">
-            {formatDuration(poll.durationMin)}, hosted by {poll.isOrganizer ? `${poll.organizer.name} (you)` : poll.organizer.name}. Times are shown
-            in your time zone, {formatZoneCity(timeZone)}.
+            {formatDuration(poll.durationMin)}, hosted by {poll.isOrganizer ? `${poll.organizer.name} (you)` : poll.organizer.name}.{' '}
+            {poll.kind === 'DAYS'
+              ? 'The host picks the hour once the day is chosen.'
+              : `Times are shown in your time zone, ${formatZoneCity(timeZone)}.`}
           </p>
           {poll.description && <p className="mt-5 max-w-prose leading-relaxed whitespace-pre-wrap">{poll.description}</p>}
 
           {practice && (
             <div className="mt-6 rounded-xl border border-line bg-desk/60 p-4">
-              <p className="font-semibold">The host chose {optionLabel(practice)}.</p>
+              <p className="font-semibold">The host chose {timeLabel(practice)}.</p>
               <Link href={shareablePracticePath(practice)} className="text-link mt-1 inline-block text-sm">
                 See the practice
               </Link>
             </div>
           )}
 
-          {poll.isOrganizer && (
-            <div className="mt-6">
-              <PollHostTools pollId={poll.id} shareUrl={absoluteUrl(pollPath(poll.id))} />
-            </div>
-          )}
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            {isOpen && (
+              <ShareButton
+                url={absoluteUrl(pollPath(poll.id))}
+                title={`When: ${poll.title}`}
+                text={`Which times work for you for ${poll.title}? Answer here:`}
+                label="Share the poll"
+                className="button button-primary"
+              />
+            )}
+            {poll.isOrganizer && <PollHostTools pollId={poll.id} />}
+          </div>
 
           <section aria-labelledby="poll-times-heading" className="mt-8 border-t border-line pt-6">
             <h2 id="poll-times-heading" className="font-display text-xl font-semibold">
-              The times
+              {poll.kind === 'DAYS' ? 'The days' : 'The times'}
             </h2>
             <ul className="mt-3 divide-y divide-line rounded-xl border border-line">
               {poll.options.map((option) => (
@@ -119,12 +144,12 @@ export default async function PollPage({ params }: PollPageProps) {
                       {option.isBest && poll.voters.length > 0 && <span className="highlight highlight-green ml-2 text-xs">Works best</span>}
                     </p>
                   </div>
-                  {poll.isOrganizer && isOpen && option.startsAt > new Date() && (
+                  {poll.isOrganizer && isOpen && isAhead(option) && (
                     <Link
                       href={`/practices/new?poll=${poll.id}&option=${option.id}`}
                       className={`button ${option.isBest ? 'button-primary' : 'button-quiet'}`}
                     >
-                      Post at this time
+                      {option.day ? 'Post on this day' : 'Post at this time'}
                     </Link>
                   )}
                 </li>
@@ -146,7 +171,7 @@ export default async function PollPage({ params }: PollPageProps) {
                       </th>
                       {poll.options.map((option) => (
                         <th key={option.id} scope="col" className="px-3 py-2 text-left font-semibold whitespace-nowrap tabular-nums">
-                          {formatShortDateTime(option.startsAt, timeZone)}
+                          {shortLabel(option)}
                         </th>
                       ))}
                     </tr>
@@ -183,7 +208,7 @@ export default async function PollPage({ params }: PollPageProps) {
           {isOpen && (
             <section aria-labelledby="poll-answer-heading" className="mt-8 border-t border-line pt-6">
               <h2 id="poll-answer-heading" className="font-display text-xl font-semibold">
-                {viewerRow ? 'Your answers' : 'Which times work for you?'}
+                {viewerRow ? 'Your answers' : poll.kind === 'DAYS' ? 'Which days work for you?' : 'Which times work for you?'}
               </h2>
               {!voter.user && (
                 <p className="mt-1 text-sm text-muted">
@@ -191,7 +216,7 @@ export default async function PollPage({ params }: PollPageProps) {
                   <Link href={authModalPath('login', { next: pollPath(poll.id) })} className="text-link">
                     Log in
                   </Link>{' '}
-                  to take a spot on your own when the practice is posted at a time you said yes to.
+                  to take a spot on your own when the practice is posted {poll.kind === 'DAYS' ? 'on a day' : 'at a time'} you said yes to.
                 </p>
               )}
               <div className="mt-4">

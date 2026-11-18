@@ -79,6 +79,15 @@ export const formatDayKeyHeading = (day: string, today: string) => {
   return longDate
 }
 
+// "Thursday, November 26" for a calendar day that means the same date for everyone. The year shows when it is not the current one.
+export const formatDayKey = (day: string, today: string) => {
+  const sameYear = day.slice(0, 4) === today.slice(0, 4)
+  return format(dayKeyToUtc(day), 'UTC', { weekday: 'long', day: 'numeric', month: 'long', ...(sameYear ? {} : { year: 'numeric' }) })
+}
+
+// "Thu, Nov 26", where a table has little room.
+export const formatShortDayKey = (day: string) => format(dayKeyToUtc(day), 'UTC', { weekday: 'short', month: 'short', day: 'numeric' })
+
 export const formatDayHeading = (date: Date, timeZone: string, now = new Date()) => formatDayKeyHeading(dayKey(date, timeZone), dayKey(now, timeZone))
 
 // Calendar months. A month is written as "2026-11", in the viewer's zone like the day keys.

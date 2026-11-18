@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
 import AddToCalendar from '+/components/AddToCalendar'
+import ShareButton from '+/components/ShareButton'
 import StatusMark from '+/components/StatusMark'
 import Wordmark from '+/components/Wordmark'
 import { getUser } from '+/lib/auth'
@@ -10,7 +11,7 @@ import { formatDuration, formatLongDate, formatTime, formatZone, formatZoneCity 
 import { ROOM_OPENS_MINUTES_BEFORE, roomOpensAt, roomStateOf } from '+/lib/livekit'
 import { getPractice } from '+/lib/practices'
 import { isWebLink, MODE_LABELS } from '+/lib/practiceRules'
-import { authModalPath } from '+/lib/redirects'
+import { absoluteUrl, authModalPath, sharePath } from '+/lib/redirects'
 import { getTimeZone } from '+/lib/timezone'
 
 import GuestRoom from './_/GuestRoom'
@@ -138,6 +139,12 @@ export default async function SharePage({ params }: SharePageProps) {
                 </div>
 
                 <AddToCalendar practice={practice} audience="guest" icsHref={`/share/${id}/event.ics`} className="mt-5" />
+                <ShareButton
+                  url={absoluteUrl(sharePath(id))}
+                  title={practice.title}
+                  label="Share with someone"
+                  className="button button-quiet mt-4"
+                />
 
                 {guestRoom}
               </>

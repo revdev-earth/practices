@@ -9,7 +9,9 @@ import { getUser } from '+/lib/auth'
 import { takeAttempts, tryAgainLater, visitorAddress } from '+/lib/attemptLimits'
 import { prisma } from '+/lib/prisma'
 import { pollPath } from '+/lib/redirects'
-import { isPollAnswer, POLL_VOTER_COOKIE, pollVoterNameSchema, timePollSchema } from '+/lib/timePolls'
+import { dayKey } from '+/lib/dates'
+import { getTimeZone } from '+/lib/timezone'
+import { dayAsInstant, isPollAnswer, POLL_VOTER_COOKIE, pollVoterNameSchema, timePollSchema } from '+/lib/timePolls'
 
 export type PollFormState = {
   success: boolean
@@ -19,24 +21,32 @@ export type PollFormState = {
 const SESSION_ENDED = 'Your session ended. Log in again.'
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
 
-// The host proposes the times. Each one arrives as an exact instant, like the start of a practice.
+// The host proposes times, each one an exact instant like the start of a practice, or days, each one a calendar date.
 export const createTimePollAction = async (_prevState: PollFormState, formData: FormData): Promise<PollFormState> => {
   const user = await getUser()
   if (!user) return { success: false, errors: { form: [SESSION_ENDED] } }
 
-  const parsed = timePollSchema.safeParse({
+  const today = dayKey(new Date(), await getTimeZone())
+  const parsed = timePollSchema(today).safeParse({
     title: String(formData.get('title') ?? ''),
     description: String(formData.get('description') ?? ''),
     durationMin: String(formData.get('durationMin') ?? ''),
+    kind: String(formData.get('kind') ?? 'TIMES'),
     options: formData.getAll('options').map(String),
   })
-  if (!parsed.success) return { success: false, errors: z.flattenError(parsed.error).fieldErrors }
+  if (!parsed.success) return { success: false, errors: z.flattenError(parsed.error).fieldErrors as Record<string, string[]> }
 
   let pollId: string
   try {
     const { options, ...poll } = parsed.data
     const created = await prisma.timePoll.create({
-      data: { ...poll, organizerId: user.id, options: { create: options.map((startsAt) => ({ startsAt })) } },
+      data: {
+        ...poll,
+        organizerId: user.id,
+        options: {
+          create: options.map((option) => (poll.kind === 'DAYS' ? { startsAt: dayAsInstant(option), day: option } : { startsAt: new Date(option) })),
+        },
+      },
       select: { id: true },
     })
     pollId = created.id

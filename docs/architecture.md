@@ -197,15 +197,21 @@ The summary that the organizer copies carries the public link when the practice 
 
 ## Polls
 
-A poll finds the time of a practice before it is posted. The rules are in `src/lib/timePolls.ts`, the reads in `src/lib/timePollReads.ts` and the actions in `src/actions/polls/index.ts`.
+A poll finds the time of a practice before it is posted. `TimePoll.kind` says whether it asks for times or for days. A day is a calendar date, the same for everyone whatever their zone, kept in `TimePollOption.day`. Its `startsAt` is noon UTC of that day, which keeps the options in order. The rules are in `src/lib/timePolls.ts`, the reads in `src/lib/timePollReads.ts` and the actions in `src/actions/polls/index.ts`.
 
-The host gives a title, a description, a duration and from 2 to 10 times in the future, typed in their zone and sent as exact instants. The poll page shows each time in the zone of whoever opens it.
+The host gives a title, a description, a duration and from 2 to 10 times in the future, typed in their zone and sent as exact instants, or from 2 to 10 days from today on. The form switches between both and keeps what was typed. The poll page shows each time in the zone of whoever opens it.
 
 Anyone with the link answers yes, if needed or no to every time. With a session the name is the one of the account. Without one the person types a name and the `poll_voter` cookie, `httpOnly` for a year, keeps the answers theirs so they can change them from the same browser. Saves without an account are limited to 30 per hour per address.
 
-The time that works best has the most yes answers, then the most if needed. Every time tied with it is marked. The host posts the practice from any future time with Post at this time, which opens the practice form already filled in. On posting, `createPracticeAction` checks that the poll is the host's and has no practice yet, signs up the people with an account who said yes, in the order they answered, after the host, and links the poll to the practice. The poll then takes no more answers and points to the practice.
+The time that works best has the most yes answers, then the most if needed. Every time tied with it is marked. The host posts the practice from any future time with Post at this time, or from a day with Post on this day, which opens the practice form already filled in. A day opens at 19:00 for the host to change. On posting, `createPracticeAction` checks that the poll is the host's and has no practice yet, signs up the people with an account who said yes, in the order they answered, after the host, and links the poll to the practice. The poll then takes no more answers and points to the practice.
+
+The page of a new practice and an empty day of the calendar link to the polls, for when the time is not clear yet.
 
 `noticePollDecision` emails the people signed up from the poll, telling them whether they have a spot or wait, and the people with an account who said if needed, so they can join. People who answered with just a name have no email and see the chosen time on the poll page.
+
+## Sharing
+
+`ShareButton` shares a link. On a touch screen it opens the share sheet of the system, with the chats and apps of the person. On a computer it copies the link. The page of a practice shares the public page when the practice is public and the page behind the login when it is private, and says which. The public page of a practice and the page of a poll have it too.
 
 ## Add to calendar
 

@@ -4,7 +4,7 @@ import Link from 'next/link'
 
 import AppShell from '+/components/AppShell'
 import { requireUser } from '+/lib/auth'
-import { formatShortDateTime } from '+/lib/dates'
+import { formatShortDateTime, formatShortDayKey } from '+/lib/dates'
 import { pollPath } from '+/lib/redirects'
 import { getTimeZone } from '+/lib/timezone'
 import { getPollsOf } from '+/lib/timePollReads'
@@ -41,9 +41,10 @@ export default async function PollsPage() {
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{poll.title}</p>
                   <p className="text-sm text-muted">
-                    {poll.optionCount} times
-                    {poll.firstOptionAt && `, from ${formatShortDateTime(poll.firstOptionAt, timeZone)}`}.{' '}
-                    {poll.voterCount === 1 ? '1 person answered' : `${poll.voterCount} people answered`}.{poll.isOrganizer ? ' You host it.' : ''}
+                    {poll.optionCount} {poll.kind === 'DAYS' ? 'days' : 'times'}
+                    {poll.firstOption &&
+                      `, from ${poll.firstOption.day ? formatShortDayKey(poll.firstOption.day) : formatShortDateTime(poll.firstOption.startsAt, timeZone)}`}
+                    . {poll.voterCount === 1 ? '1 person answered' : `${poll.voterCount} people answered`}.{poll.isOrganizer ? ' You host it.' : ''}
                   </p>
                 </div>
                 <span className={`highlight text-sm ${poll.practiceId ? 'highlight-green' : 'highlight-yellow'}`}>

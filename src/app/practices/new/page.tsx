@@ -1,4 +1,6 @@
+import { CalendarClock } from 'lucide-react'
 import type { Metadata } from 'next'
+import Link from 'next/link'
 
 import { createPracticeAction } from '+/actions/practices'
 import { requireUser } from '+/lib/auth'
@@ -38,7 +40,7 @@ const chosenPollTime = (pollId: string | undefined, optionId: string | undefined
   pollId && optionId
     ? prisma.timePollOption.findFirst({
         where: { id: optionId, poll: { id: pollId, organizerId, practiceId: null } },
-        select: { id: true, startsAt: true, poll: { select: { id: true, title: true, description: true, durationMin: true } } },
+        select: { id: true, startsAt: true, day: true, poll: { select: { id: true, title: true, description: true, durationMin: true } } },
       })
     : null
 
@@ -51,7 +53,12 @@ export default async function NewPracticePage({ searchParams }: NewPracticePageP
   const defaults: PracticeFormDefaults = {
     title: fromPoll?.poll.title ?? '',
     description: fromPoll?.poll.description ?? '',
-    startsAtLocal: fromPoll ? toDateTimeLocal(fromPoll.startsAt, timeZone) : suggestedStart(requestedDay, now, timeZone),
+    // A day chosen in a poll opens on that day at the suggested hour, for the host to adjust.
+    startsAtLocal: fromPoll?.day
+      ? suggestedStart(fromPoll.day, now, timeZone)
+      : fromPoll
+        ? toDateTimeLocal(fromPoll.startsAt, timeZone)
+        : suggestedStart(requestedDay, now, timeZone),
     durationMin: fromPoll?.poll.durationMin ?? 60,
     mode: 'ONLINE',
     videoRoom: true,
@@ -65,10 +72,25 @@ export default async function NewPracticePage({ searchParams }: NewPracticePageP
     <div className="mx-auto max-w-2xl">
       <h1 className="font-display text-4xl font-bold tracking-tight">Post a practice</h1>
       <p className="mt-2 text-muted">
-        {fromPoll
-          ? 'You take the first spot on the sign-up sheet. The people with an account who said yes to this time take the next ones.'
-          : 'You take the first spot on the sign-up sheet.'}
+        {fromPoll?.day
+          ? 'The group chose the day. Pick the hour. You take the first spot on the sign-up sheet and the people with an account who said yes to this day take the next ones.'
+          : fromPoll
+            ? 'You take the first spot on the sign-up sheet. The people with an account who said yes to this time take the next ones.'
+            : 'You take the first spot on the sign-up sheet.'}
       </p>
+
+      {!fromPoll && (
+        <Link
+          href="/polls/new"
+          className="mt-6 flex items-center gap-3 rounded-xl border border-dashed border-pen/40 bg-pen/5 px-4 py-3 text-sm hover:bg-pen/10"
+        >
+          <CalendarClock className="size-5 shrink-0 text-pen" aria-hidden="true" />
+          <span>
+            <span className="font-semibold">Not sure when?</span> Ask the group with a poll of days or times, and post the practice at the one that
+            works.
+          </span>
+        </Link>
+      )}
 
       <div className="mt-8 rounded-xl border border-line bg-sheet p-6 sm:p-8">
         <PracticeForm

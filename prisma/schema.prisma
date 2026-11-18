@@ -74,6 +74,9 @@ model TimePoll {
   description String @default("")
   durationMin Int
 
+  // Whether the poll asks for times, or only for days and the host picks the hour when posting.
+  kind PollKind @default(TIMES)
+
   organizerId String
   organizer   User   @relation(fields: [organizerId], references: [id], onDelete: Cascade)
 
@@ -93,14 +96,23 @@ model TimePoll {
 model TimePollOption {
   id String @id @default(cuid())
 
-  pollId   String
+  pollId String
+
+  // An exact instant for a poll of times. For a poll of days it is noon UTC of that day, which keeps the days in order.
   startsAt DateTime
+  // The calendar day of a poll of days, as "2026-11-26". The same date for everyone, whatever their zone.
+  day      String?
 
   poll  TimePoll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
   votes TimePollVote[]
 
   @@index([pollId])
   @@map("time_poll_options")
+}
+
+enum PollKind {
+  TIMES
+  DAYS
 }
 
 enum PollAnswer {

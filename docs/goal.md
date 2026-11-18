@@ -90,6 +90,12 @@ A fifth request, on 2026-11-18, asked for two things. This is a faithful transla
 
 The answers to the questions that followed set the shape. The poll comes before the practice: the host proposes times, people answer, and the host posts the practice at the chosen time. Anyone with the link answers, with an account or with just a name. Each time takes yes, if needed or no. Once the time of the practice is up, the room stays while people are in it, until the host ends the call or a few minutes after the last person leaves.
 
+A sixth request, on 2026-11-19, after the first deploy, asked for a share button on the practice, a visible way to reach the polls when posting a practice, and polls that ask for dates. This is a faithful translation.
+
+> And since it gets shared, it's missing the share button, and when I created it I saw nothing about making a poll of which times suit best, and it could also ask which dates are preferable.
+
+A poll now asks for times or for days. In a poll of days the host picks the hour when posting the practice.
+
 ## Ideas for later
 
 Recording a session from the video room. The host decides to record, with no vote from the group. A visible notice tells everyone while it runs. Whoever does not agree can leave the call, or tell the host, and their image is not kept. LiveKit offers recording through egress, which needs storage for the files.
