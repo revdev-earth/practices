@@ -16,6 +16,8 @@ const ATTEMPT_RULES = {
   registerFromAddress: { limit: 10, windowMinutes: 60 },
   // Someone without an account answering polls. Each save counts once, whatever the number of times answered.
   pollAnswersFromAddress: { limit: 30, windowMinutes: 60 },
+  // Someone without an account taking spots, since a name alone is easy to repeat.
+  guestSpotsFromAddress: { limit: 10, windowMinutes: 60 },
 } as const
 
 export type AttemptKind = keyof typeof ATTEMPT_RULES

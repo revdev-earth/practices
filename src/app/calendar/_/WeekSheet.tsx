@@ -9,7 +9,7 @@ import PracticeMark from './PracticeMark'
 import WeekHours from './WeekHours'
 
 // Height of one hour on the sheet.
-const HOUR_REM = 3.25
+const HOUR_REM = 2.75
 // Where the hours open when the week has no practices.
 const DEFAULT_START_HOUR = 8
 // A short practice still gets room for its time and title, on one line.
@@ -70,7 +70,8 @@ const HOURS_IN_VIEW = 12
 const busiestStartHour = (startMinutes: number[]) => {
   const candidates = Array.from({ length: 24 - HOURS_IN_VIEW + 1 }, (_, hour) => ({
     hour,
-    practices: startMinutes.filter((minute) => minute >= hour * 60 && minute < (hour + HOURS_IN_VIEW) * 60).length,
+    // A practice counts when it starts at least an hour before the bottom edge, so it is seen whole.
+    practices: startMinutes.filter((minute) => minute >= hour * 60 && minute < (hour + HOURS_IN_VIEW - 1) * 60).length,
   }))
   candidates.sort(
     (first, second) => second.practices - first.practices || Math.abs(first.hour - DEFAULT_START_HOUR) - Math.abs(second.hour - DEFAULT_START_HOUR)

@@ -4,6 +4,7 @@ import { after } from 'next/server'
 
 import { formatLongDate, formatTime, formatZone } from '+/lib/dates'
 import { sendPracticeNotice } from '+/lib/email'
+import { sheetOrder } from '+/lib/practices'
 import { prisma } from '+/lib/prisma'
 import { absoluteUrl, practicePath } from '+/lib/redirects'
 import { getBrowserTimeZone } from '+/lib/timezone'
@@ -12,7 +13,8 @@ import { getBrowserTimeZone } from '+/lib/timezone'
 // the practice reached its minimum, someone moved up from the waitlist, the host moved the time or cancelled it.
 // Each action reads the sheet before and after its change and these functions compare both.
 
-type Person = { id: string; name: string; email: string; timeZone: string | null }
+// A guest without an account has no email, so the notices leave them out. They still count for the order of the sheet.
+type Person = { id: string; name: string; email: string | null; timeZone: string | null }
 
 export type SheetSnapshot = {
   id: string
@@ -24,6 +26,9 @@ export type SheetSnapshot = {
   confirmed: Person[]
   waiting: Person[]
 }
+
+// The people a notice can reach: the ones with an email.
+const withEmail = (people: Person[]) => people.filter((person): person is Person & { email: string } => Boolean(person.email))
 
 const personSelect = { id: true, name: true, email: true, timeZone: true } as const
 
@@ -37,12 +42,19 @@ export const readSheet = async (practiceId: string): Promise<SheetSnapshot | nul
       endsAt: true,
       minParticipants: true,
       maxParticipants: true,
-      signups: { orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }], select: { user: { select: personSelect } } },
+      signups: { orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }], select: { id: true, joinedAt: true, user: { select: personSelect } } },
+      guestSignups: { select: { id: true, joinedAt: true, name: true } },
     },
   })
   if (!practice) return null
 
-  const people = practice.signups.map(({ user }) => user)
+  const members = practice.signups.map(({ id, joinedAt, user }) => ({ id, joinedAt, person: user as Person }))
+  const guests = practice.guestSignups.map(({ id, joinedAt, name }) => ({
+    id,
+    joinedAt,
+    person: { id: `guest:${id}`, name, email: null, timeZone: null } as Person,
+  }))
+  const people = sheetOrder(members, guests).map((entry) => entry.person)
   return {
     id: practice.id,
     title: practice.title,
@@ -77,7 +89,7 @@ export const noticeSheetChanges = (before: SheetSnapshot | null, after_: SheetSn
 
   const notices: (() => Promise<void>)[] = []
 
-  for (const person of movedUp) {
+  for (const person of withEmail(movedUp)) {
     if (person.id === changedBy) continue
     notices.push(() =>
       sendPracticeNotice({
@@ -97,7 +109,7 @@ export const noticeSheetChanges = (before: SheetSnapshot | null, after_: SheetSn
 
   if (practiceConfirmed) {
     const movedUpIds = new Set(movedUp.map((person) => person.id))
-    for (const person of after_.confirmed) {
+    for (const person of withEmail(after_.confirmed)) {
       if (person.id === changedBy || movedUpIds.has(person.id)) continue
       notices.push(() =>
         sendPracticeNotice({
@@ -113,7 +125,7 @@ export const noticeSheetChanges = (before: SheetSnapshot | null, after_: SheetSn
   }
 
   if (timeMoved) {
-    for (const person of [...after_.confirmed, ...after_.waiting]) {
+    for (const person of withEmail([...after_.confirmed, ...after_.waiting])) {
       if (person.id === changedBy) continue
       notices.push(() =>
         sendPracticeNotice({
@@ -135,7 +147,7 @@ export const noticeSheetChanges = (before: SheetSnapshot | null, after_: SheetSn
 export const noticeCancellation = (before: SheetSnapshot | null, organizerName: string, changedBy: string) => {
   if (!before || before.endsAt < new Date()) return
 
-  const notices = [...before.confirmed, ...before.waiting]
+  const notices = withEmail([...before.confirmed, ...before.waiting])
     .filter((person) => person.id !== changedBy)
     .map(
       (person) => () =>
@@ -184,7 +196,7 @@ export const noticePollDecision = async (practiceId: string, optionId: string, o
   const confirmedIds = new Set(sheet.confirmed.map((person) => person.id))
   const notices: (() => Promise<void>)[] = []
 
-  for (const person of [...sheet.confirmed, ...sheet.waiting]) {
+  for (const person of withEmail([...sheet.confirmed, ...sheet.waiting])) {
     if (person.id === organizerId) continue
     const hasSpot = confirmedIds.has(person.id)
     notices.push(() =>

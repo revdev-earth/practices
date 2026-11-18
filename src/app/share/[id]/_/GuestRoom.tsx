@@ -16,10 +16,12 @@ const initialState: GuestEntryState = { success: false }
 type GuestRoomProps = {
   practiceId: string
   leaveHref: string
+  // The name of the spot this browser holds. With it the guest enters straight away, without typing a name.
+  listedName: string | null
 }
 
 // The name form of a guest and, once the room let them in, the call itself.
-export default function GuestRoom({ practiceId, leaveHref }: GuestRoomProps) {
+export default function GuestRoom({ practiceId, leaveHref, listedName }: GuestRoomProps) {
   const { state, onSubmit, isPending } = useFormAction(enterAsGuestAction.bind(null, practiceId), initialState)
 
   if (state.success && state.entry) {
@@ -30,9 +32,21 @@ export default function GuestRoom({ practiceId, leaveHref }: GuestRoomProps) {
     )
   }
 
+  if (listedName) {
+    return (
+      <form onSubmit={onSubmit} noValidate className="mt-4 space-y-3">
+        <FormError message={state.error} />
+        <button type="submit" disabled={isPending} className="button button-primary">
+          {isPending ? 'Opening the room…' : `Enter the room as ${listedName}`}
+          {!isPending && <ArrowRight className="size-5" aria-hidden="true" />}
+        </button>
+      </form>
+    )
+  }
+
   return (
     <form onSubmit={onSubmit} noValidate className="mt-4 space-y-4">
-      <Field label="Your name" htmlFor="guest-name">
+      <Field label="Name for the call" htmlFor="guest-name">
         <IconInput
           icon={User}
           id="guest-name"

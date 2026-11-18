@@ -1,5 +1,7 @@
 import type { Participant, PracticeView } from '+/lib/practices'
 
+import RemoveGuestButton from './RemoveGuestButton'
+
 // Up to this size the sheet shows every line. Bigger groups show the lines up to the minimum and sum up the rest.
 const LARGEST_SHEET_DRAWN_IN_FULL = 12
 
@@ -7,6 +9,7 @@ const ParticipantName = ({ person }: { person: Participant }) => (
   <>
     <span className="truncate">{person.name}</span>
     {person.isOrganizer && <span className="shrink-0 text-xs font-medium text-muted">host</span>}
+    {person.isGuest && <span className="shrink-0 text-xs font-medium text-muted">not registered</span>}
     {person.isViewer && <span className="shrink-0 text-xs font-medium text-muted">you</span>}
   </>
 )
@@ -16,6 +19,12 @@ export default function Roster({ practice }: { practice: PracticeView }) {
   const { confirmed, waiting, minParticipants: minimum, maxParticipants: maximum } = practice
   const taken = confirmed.length
   const isPast = practice.status === 'past'
+
+  // The host can take people without an account off the sheet while the practice is ahead.
+  const removeButton = (person: Participant) =>
+    practice.viewer.isOrganizer && person.isGuest && !isPast ? (
+      <RemoveGuestButton practiceId={practice.id} guestSignupId={person.id.replace(/^guest:/, '')} name={person.name} />
+    ) : null
 
   const lastLineDrawn = isPast ? taken : maximum <= LARGEST_SHEET_DRAWN_IN_FULL ? maximum : Math.min(maximum, Math.max(minimum, taken + 1))
   const freeLinesLeftOut = isPast ? 0 : maximum - lastLineDrawn
@@ -43,9 +52,12 @@ export default function Roster({ practice }: { practice: PracticeView }) {
             >
               <span className="w-6 shrink-0 text-sm text-muted tabular-nums">{lineNumber}</span>
               {person ? (
-                <span className="flex min-w-0 items-baseline gap-2 font-semibold text-pen">
-                  <ParticipantName person={person} />
-                </span>
+                <>
+                  <span className="flex min-w-0 items-baseline gap-2 font-semibold text-pen">
+                    <ParticipantName person={person} />
+                  </span>
+                  {removeButton(person)}
+                </>
               ) : (
                 <span className="sr-only">Free spot</span>
               )}
@@ -77,6 +89,7 @@ export default function Roster({ practice }: { practice: PracticeView }) {
                 <span className="flex min-w-0 items-baseline gap-2 font-medium">
                   <ParticipantName person={person} />
                 </span>
+                {removeButton(person)}
               </li>
             ))}
           </ol>

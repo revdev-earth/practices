@@ -7,18 +7,32 @@ const practiceInclude = {
   organizer: { select: { id: true, name: true } },
   signups: {
     orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }],
-    select: { user: { select: { id: true, name: true } } },
+    select: { id: true, joinedAt: true, user: { select: { id: true, name: true } } },
+  },
+  guestSignups: {
+    orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }],
+    select: { id: true, joinedAt: true, name: true, guestKey: true },
   },
 } satisfies Prisma.PracticeInclude
 
 type PracticeRecord = Prisma.PracticeGetPayload<{ include: typeof practiceInclude }>
 
 export type Participant = {
+  // The user id, or "guest:<guest signup id>" for someone without an account.
   id: string
   name: string
   isViewer: boolean
   isOrganizer: boolean
+  // Took the spot with just a name, without an account. The sheet shows them as not registered.
+  isGuest: boolean
 }
+
+// Who is looking: a user id, the guest id of a browser without an account, or nobody in particular.
+export type Viewer = { userId?: string | null; guestKey?: string | null }
+
+// People with and without an account share one sheet in arrival order.
+export const sheetOrder = <T extends { joinedAt: Date; id: string }>(first: T[], second: T[]) =>
+  [...first, ...second].sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime() || a.id.localeCompare(b.id))
 
 export type PracticeView = {
   id: string
@@ -52,12 +66,29 @@ export type PracticeView = {
   }
 }
 
-const toPracticeView = (practice: PracticeRecord, viewerId: string, now: Date): PracticeView => {
-  const participants = practice.signups.map(({ user }) => ({
-    id: user.id,
-    name: user.name,
-    isViewer: user.id === viewerId,
-    isOrganizer: user.id === practice.organizerId,
+const toPracticeView = (practice: PracticeRecord, viewer: Viewer, now: Date): PracticeView => {
+  const members = practice.signups.map((signup) => ({
+    id: signup.user.id,
+    joinedAt: signup.joinedAt,
+    name: signup.user.name,
+    isViewer: Boolean(viewer.userId) && signup.user.id === viewer.userId,
+    isOrganizer: signup.user.id === practice.organizerId,
+    isGuest: false,
+  }))
+  const guests = practice.guestSignups.map((signup) => ({
+    id: `guest:${signup.id}`,
+    joinedAt: signup.joinedAt,
+    name: signup.name,
+    isViewer: Boolean(viewer.guestKey) && signup.guestKey === viewer.guestKey,
+    isOrganizer: false,
+    isGuest: true,
+  }))
+  const participants: Participant[] = sheetOrder(members, guests).map(({ id, name, isViewer, isOrganizer, isGuest }) => ({
+    id,
+    name,
+    isViewer,
+    isOrganizer,
+    isGuest,
   }))
   const confirmed = participants.slice(0, practice.maxParticipants)
   const waiting = participants.slice(practice.maxParticipants)
@@ -85,7 +116,7 @@ const toPracticeView = (practice: PracticeRecord, viewerId: string, now: Date): 
     missing: Math.max(practice.minParticipants - confirmed.length, 0),
     spotsLeft: Math.max(practice.maxParticipants - confirmed.length, 0),
     viewer: {
-      isOrganizer: practice.organizerId === viewerId,
+      isOrganizer: Boolean(viewer.userId) && practice.organizerId === viewer.userId,
       place: confirmed.some((person) => person.isViewer) ? 'confirmed' : waiting.some((person) => person.isViewer) ? 'waiting' : null,
     },
   }
@@ -99,7 +130,7 @@ export const getUpcomingPractices = async (viewerId: string): Promise<PracticeVi
     include: practiceInclude,
     take: 200,
   })
-  return practices.map((practice) => toPracticeView(practice, viewerId, now))
+  return practices.map((practice) => toPracticeView(practice, { userId: viewerId }, now))
 }
 
 export const getPastPractices = async (viewerId: string): Promise<PracticeView[]> => {
@@ -110,7 +141,7 @@ export const getPastPractices = async (viewerId: string): Promise<PracticeView[]
     include: practiceInclude,
     take: 50,
   })
-  return practices.map((practice) => toPracticeView(practice, viewerId, now))
+  return practices.map((practice) => toPracticeView(practice, { userId: viewerId }, now))
 }
 
 // Practices that start inside a stretch of time, past and upcoming together, for the calendar.
@@ -122,12 +153,14 @@ export const getPracticesStartingBetween = async (viewerId: string, from: Date, 
     include: practiceInclude,
     take: 500,
   })
-  return practices.map((practice) => toPracticeView(practice, viewerId, now))
+  return practices.map((practice) => toPracticeView(practice, { userId: viewerId }, now))
 }
 
 export const countPastPractices = () => prisma.practice.count({ where: { endsAt: { lt: new Date() } } })
 
-export const getPractice = async (id: string, viewerId: string): Promise<PracticeView | null> => {
+// viewerId is the user looking, or a viewer with the guest id of a browser without an account.
+export const getPractice = async (id: string, viewerId: string | Viewer): Promise<PracticeView | null> => {
   const practice = await prisma.practice.findUnique({ where: { id }, include: practiceInclude })
-  return practice ? toPracticeView(practice, viewerId, new Date()) : null
+  const viewer = typeof viewerId === 'string' ? { userId: viewerId } : viewerId
+  return practice ? toPracticeView(practice, viewer, new Date()) : null
 }

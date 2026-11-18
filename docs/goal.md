@@ -96,6 +96,10 @@ A sixth request, on 2026-11-19, after the first deploy, asked for a share button
 
 A poll now asks for times or for days. In a poll of days the host picks the hour when posting the practice.
 
+Three more requests came on 2026-11-19. People without an account take a spot on the sheet and show as not registered. A pasted link shows the practice in the preview of the chat. The month of the calendar wastes less space.
+
+Before, a public practice only let people without an account into the room, with no spot. Now they also take a spot with a name, which counts toward the minimum and the maximum, and the host can take them off the sheet.
+
 ## Ideas for later
 
 Recording a session from the video room. The host decides to record, with no vote from the group. A visible notice tells everyone while it runs. Whoever does not agree can leave the call, or tell the host, and their image is not kept. LiveKit offers recording through egress, which needs storage for the files.

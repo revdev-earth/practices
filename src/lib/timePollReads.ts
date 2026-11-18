@@ -1,16 +1,15 @@
 import 'server-only'
 
-import { cookies } from 'next/headers'
-
 import { getUser, type SessionUser } from '+/lib/auth'
 import { prisma } from '+/lib/prisma'
-import { bestOptionIds, POLL_VOTER_COOKIE, type PollAnswer, type PollKind } from '+/lib/timePolls'
+import { readGuestKey } from '+/lib/guests'
+import { bestOptionIds, type PollAnswer, type PollKind } from '+/lib/timePolls'
 
 // Who is answering: the account when there is a session, else the guest cookie of this browser. Null for a guest who never answered.
 export const currentPollVoter = async (): Promise<{ key: string | null; user: SessionUser | null }> => {
   const user = await getUser()
   if (user) return { key: `user:${user.id}`, user }
-  const guestId = (await cookies()).get(POLL_VOTER_COOKIE)?.value
+  const guestId = await readGuestKey()
   return { key: guestId ? `guest:${guestId}` : null, user: null }
 }
 

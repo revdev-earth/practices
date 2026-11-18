@@ -1,7 +1,6 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
@@ -11,7 +10,8 @@ import { prisma } from '+/lib/prisma'
 import { pollPath } from '+/lib/redirects'
 import { dayKey } from '+/lib/dates'
 import { getTimeZone } from '+/lib/timezone'
-import { dayAsInstant, isPollAnswer, POLL_VOTER_COOKIE, pollVoterNameSchema, timePollSchema } from '+/lib/timePolls'
+import { ensureGuestKey } from '+/lib/guests'
+import { dayAsInstant, isPollAnswer, pollVoterNameSchema, timePollSchema } from '+/lib/timePolls'
 
 export type PollFormState = {
   success: boolean
@@ -19,7 +19,6 @@ export type PollFormState = {
 }
 
 const SESSION_ENDED = 'Your session ended. Log in again.'
-const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
 
 // The host proposes times, each one an exact instant like the start of a practice, or days, each one a calendar date.
 export const createTimePollAction = async (_prevState: PollFormState, formData: FormData): Promise<PollFormState> => {
@@ -78,18 +77,7 @@ export const answerTimePollAction = async (pollId: string, _prevState: PollFormS
     const verdict = await takeAttempts([['pollAnswersFromAddress', await visitorAddress()]])
     if (!verdict.allowed) return { success: false, errors: { form: [tryAgainLater(verdict.retryInMinutes)] } }
 
-    const cookieStore = await cookies()
-    let guestId = cookieStore.get(POLL_VOTER_COOKIE)?.value
-    if (!guestId) {
-      guestId = crypto.randomUUID()
-      cookieStore.set(POLL_VOTER_COOKIE, guestId, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: ONE_YEAR_SECONDS,
-        path: '/',
-      })
-    }
+    const guestId = await ensureGuestKey()
     voter = { key: `guest:${guestId}`, userId: null, name: name.data }
   }
 

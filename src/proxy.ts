@@ -5,7 +5,8 @@ import { authModalPath } from '+/lib/redirects'
 
 // The landing page, the pages of public practices (/share/…) and each poll (/polls/<id>) are open to anyone.
 // Login, registration and password recovery open on top of the landing page.
-const isPollPage = (pathname: string) => /^\/polls\/[^/]+$/.test(pathname) && pathname !== '/polls/new'
+// The preview image of a poll is public too, so chat apps can show it.
+const isPollPage = (pathname: string) => /^\/polls\/[^/]+(\/opengraph-image[^/]*)?$/.test(pathname) && pathname !== '/polls/new'
 const isPublicPath = (pathname: string) => pathname === '/' || pathname.startsWith('/share/') || isPollPage(pathname)
 
 // Quick check by cookie: whoever reaches a private route without a session goes to the landing page with the login window open,

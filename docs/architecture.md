@@ -77,6 +77,8 @@ The schema is in `prisma/schema.prisma`.
 
 `Signup` links a person to a practice and stores `joinedAt`. The practice and user pair is unique.
 
+`GuestSignup` is a spot taken without an account, on a public practice. It stores the name and the guest id of the browser, and the practice and guest pair is unique. The sheet merges both tables by `joinedAt`, with `sheetOrder` in `src/lib/practices.ts`, so people with and without an account share one order.
+
 `User`, `Session`, `Account` and `Verification` are the Better Auth tables. `User` adds `confirmationCodeSentAt` and `timeZone`.
 
 `TimePoll`, `TimePollOption` and `TimePollVote` keep the polls, their times and the answers. A vote belongs to `user:<id>` or to `guest:<uuid>`, and the pair of time and person is unique. `TimePoll.practiceId` points to the practice posted from the poll.
@@ -109,11 +111,11 @@ A calendar day is written as a key, `2026-11-19`, and a month as `2026-11`, both
 
 The page reads the practices that start inside a stretch of UTC time wide enough for every zone, from `utcWindowCoveringDays`, and then groups them by `dayKey`. That keeps the query free of time zone math and puts each practice on the day the viewer sees it start.
 
-`MonthSheet` draws the month as a table. Each day box is one link that selects the day. The practices of a day are `PracticeMark` links in the highlighter color of their status, placed above the link of the box. A pen dot marks the practices the viewer signed up for and it is hollow while the viewer is on the waitlist. Below 768 pixels a box only fits a short stroke per practice.
+`MonthSheet` draws the month as a table. From 768 pixels a day box is at least 5.5 rem tall and grows with its practices, so a quiet week stays short. A practice writes its time and title as one text over up to two lines. Each day box is one link that selects the day. The practices of a day are `PracticeMark` links in the highlighter color of their status, placed above the link of the box. A pen dot marks the practices the viewer signed up for and it is hollow while the viewer is on the waitlist. Below 768 pixels a box only fits a short stroke per practice.
 
 The practices of the selected day are listed under the month with the same `PracticeRow` the list uses.
 
-`WeekSheet` draws the week as a planner page, with a column per day and a row per hour. Each practice is a block of highlighter as long as it lasts, placed by its wall clock time in the viewer's zone. Practices that overlap split the width of their day, each in its own lane. A practice that runs past midnight stops at the end of its day. The 24 hours scroll inside the sheet, about twelve at a time, and `WeekHours` opens them on the twelve hours that hold the most practices of the week. A pen line marks the current time across today. Below 768 pixels the week becomes a list of days with the same `PracticeMark` as the month.
+`WeekSheet` draws the week as a planner page, with a column per day and a row per hour. Each practice is a block of highlighter as long as it lasts, placed by its wall clock time in the viewer's zone. Practices that overlap split the width of their day, each in its own lane. A practice that runs past midnight stops at the end of its day. The 24 hours scroll inside the sheet, about twelve at a time at 2.75 rem per hour, and `WeekHours` opens them on the twelve hours that hold the most practices starting at least an hour before the bottom edge. A pen line marks the current time across today. Below 768 pixels the week becomes a list of days with the same `PracticeMark` as the month.
 
 The Month and Week switch keeps the selected day, so each view opens on the day picked in the other.
 
@@ -185,11 +187,21 @@ The room page, the guest entry, the groups and the move between rooms all ask `r
 
 Without the three `LIVEKIT` variables the practices keep working and the room button says it is not available. In development `pnpm livekit` starts a local server in Docker with public development keys from `livekit.dev.yaml`. In production the values come from a LiveKit Cloud project.
 
+## Spots without an account
+
+On the public page of a practice, `GuestSpot` takes a spot with just a name, or a place on the waitlist when the sheet is full. The sheet shows the name with the tag not registered. Such a spot counts toward the minimum and the maximum like any other, and someone leaving moves the waitlist up whoever they are.
+
+The guest id of the browser lives in the `poll_voter` cookie, `httpOnly` for a year, through `src/lib/guests.ts`. The name stays from the first deploy, when only polls used it. The same id answers polls and holds spots, so a yes given in a poll without an account becomes a spot when the host posts the practice as public. A private practice never takes spots without an account, since those people cannot open it.
+
+The same browser gives the spot back. The host takes a guest off the sheet from the sheet itself, with a confirmation. Guests have no email, so the notices leave them out. Taking spots without an account is limited to 10 per hour per address.
+
+A guest with a confirmed spot enters the room with the name of the spot, without typing it again. The pass has the identity `listed-<id>`, so the spot uses one of the places of the sheet and never one of the places for visitors.
+
 ## Public practices and guests
 
 `Practice.isPublic` is chosen in the form, private by default. A public practice has the page `/share/[id]`, which anyone can open with no account. It shows the practice, the host, how many spots are taken and no names from the sign-up sheet. A private practice answers 404 at that address, so its link gives nothing away. Someone who is logged in is sent to the full page at `/practices/[id]`.
 
-If the public practice has a Practices room, the page asks for a name and lets the person into the call as a guest. `enterAsGuestAction` checks everything on the server: the name, that the practice is public, has a room, has not ended and that the room is open. A guest has no spot on the sheet.
+If the public practice has a Practices room, the page also lets a visitor into the call with a name, without a spot on the sheet. `enterAsGuestAction` checks everything on the server: the name, that the practice is public, has a room, has not ended and that the room is open. A guest has no spot on the sheet.
 
 The room of a public practice has 10 extra places for guests, `GUEST_SEATS` in `src/lib/livekit.ts`. LiveKit enforces the total and the pass for a guest is refused once 10 guests are inside, so guests can never take the place of someone with a confirmed spot.
 
@@ -208,6 +220,12 @@ The time that works best has the most yes answers, then the most if needed. Ever
 The page of a new practice and an empty day of the calendar link to the polls, for when the time is not clear yet.
 
 `noticePollDecision` emails the people signed up from the poll, telling them whether they have a spot or wait, and the people with an account who said if needed, so they can join. People who answered with just a name have no email and see the chosen time on the poll page.
+
+## Link previews
+
+A chat app fetches a pasted link from its own server and shows its title, description and image. `src/lib/linkPreview.ts` writes them for a public practice and for a poll. The app has no time zone of the reader there, so the time goes in the zone of the host, from `User.timeZone`, with the zone written out. A private practice gives no details.
+
+`opengraph-image.tsx` under `/share/[id]` and `/polls/[id]` draws a picture of 1200 by 630 with `next/og`: a white sheet on the desk with the status, the title, the day, the time, the place and the spots. `src/lib/previewImage.tsx` holds the shared parts and loads Bricolage Grotesque and Instrument Sans from Google Fonts, only the letters drawn. Without them the picture keeps the default typeface. `src/proxy.ts` leaves the picture of a poll public.
 
 ## Sharing
 

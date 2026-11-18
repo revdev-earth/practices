@@ -23,8 +23,7 @@ export default function PracticeMark({ practice, timeZone }: PracticeMarkProps) 
   return (
     <Link href={`/practices/${practice.id}`} title={practice.title} className={`calendar-mark ${HIGHLIGHT[practice.status]}`}>
       {place && <span aria-hidden="true" className={`calendar-pen-dot ${place === 'waiting' ? 'calendar-pen-dot-waiting' : ''}`} />}
-      <span className="font-semibold tabular-nums">{formatTime(practice.startsAt, timeZone)}</span>
-      <span className="truncate">{practice.title}</span>
+      <span className="font-semibold tabular-nums">{formatTime(practice.startsAt, timeZone)}</span> {practice.title}
       <span className="sr-only">
         , {statusText(practice)}
         {viewerPlaceText(place)}

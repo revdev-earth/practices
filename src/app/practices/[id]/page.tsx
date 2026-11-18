@@ -39,7 +39,7 @@ const shareableSummary = (practice: PracticeView, timeZone: string) =>
     practice.title,
     `${formatLongDate(practice.startsAt, timeZone)}, ${timeRange(practice, timeZone)}`,
     where(practice) ? `${MODE_LABELS[practice.mode]}: ${where(practice)}` : MODE_LABELS[practice.mode],
-    `Group (${practice.confirmed.length} of ${practice.maxParticipants}): ${practice.confirmed.map((person) => person.name).join(', ')}`,
+    `Group (${practice.confirmed.length} of ${practice.maxParticipants}): ${practice.confirmed.map((person) => (person.isGuest ? `${person.name} (not registered)` : person.name)).join(', ')}`,
     `See it in your own time zone: ${absoluteUrl(shareablePracticePath(practice))}`,
   ].join('\n')
 

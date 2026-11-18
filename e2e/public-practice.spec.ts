@@ -58,7 +58,7 @@ test.describe('Public practices', () => {
     const context = await browser.newContext({ permissions: ['camera', 'microphone'] })
     const guest = await context.newPage()
     await guest.goto(`/share/${id}`)
-    await guest.getByLabel('Your name').fill('Visiting Guest')
+    await guest.getByLabel('Name for the call').fill('Visiting Guest')
     await guest.getByRole('button', { name: 'Enter the room' }).click()
     await expect(guest.locator('.lk-control-bar')).toBeVisible({ timeout: 30_000 })
     await expect(guest.locator('.lk-participant-tile').filter({ hasText: 'Visiting Guest' })).toBeVisible({ timeout: 30_000 })

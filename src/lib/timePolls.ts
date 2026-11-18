@@ -11,9 +11,6 @@ export type PollAnswer = (typeof POLL_ANSWERS)[number]
 
 export const ANSWER_LABELS: Record<PollAnswer, string> = { YES: 'Yes', IF_NEEDED: 'If needed', NO: 'No' }
 
-// The cookie that keeps the answers of someone without an account, so they can change them from the same browser.
-export const POLL_VOTER_COOKIE = 'poll_voter'
-
 const { title, description } = PRACTICE_LIMITS
 
 // A poll asks for exact times, or only for days and the host picks the hour when posting the practice.

@@ -7,6 +7,8 @@ import ShareButton from '+/components/ShareButton'
 import StatusMark from '+/components/StatusMark'
 import Wordmark from '+/components/Wordmark'
 import { getUser } from '+/lib/auth'
+import { publicPracticePreview } from '+/lib/linkPreview'
+import { readGuestKey } from '+/lib/guests'
 import { formatDuration, formatLongDate, formatTime, formatZone, formatZoneCity } from '+/lib/dates'
 import { ROOM_OPENS_MINUTES_BEFORE, roomOpensAt, roomStateOf } from '+/lib/livekit'
 import { getPractice } from '+/lib/practices'
@@ -15,15 +17,23 @@ import { absoluteUrl, authModalPath, sharePath } from '+/lib/redirects'
 import { getTimeZone } from '+/lib/timezone'
 
 import GuestRoom from './_/GuestRoom'
+import GuestSpot from './_/GuestSpot'
 
 type SharePageProps = {
   params: Promise<{ id: string }>
 }
 
+// What a chat app shows under a pasted link: the title, the time in the zone of the host, the place and the free spots.
 export async function generateMetadata({ params }: SharePageProps): Promise<Metadata> {
   const { id } = await params
-  const practice = await getPractice(id, '')
-  return { title: practice?.isPublic ? practice.title : 'Practice' }
+  const preview = await publicPracticePreview(id)
+  if (!preview) return { title: 'Practice' }
+  return {
+    title: preview.title,
+    description: preview.description,
+    openGraph: { title: preview.title, description: preview.description, url: sharePath(id), type: 'website', siteName: 'Practices' },
+    twitter: { card: 'summary_large_image', title: preview.title, description: preview.description },
+  }
 }
 
 // The page of a public practice for anyone with the link. People with an account are sent to the full page.
@@ -32,7 +42,7 @@ export default async function SharePage({ params }: SharePageProps) {
 
   if (await getUser()) redirect(`/practices/${id}`)
 
-  const [practice, timeZone] = await Promise.all([getPractice(id, ''), getTimeZone()])
+  const [practice, timeZone] = await Promise.all([getPractice(id, { guestKey: await readGuestKey() }), getTimeZone()])
   // A private practice answers like one that does not exist, so its link gives nothing away.
   if (!practice || !practice.isPublic) notFound()
 
@@ -41,12 +51,19 @@ export default async function SharePage({ params }: SharePageProps) {
   // The call can go on past the end of the practice, so guests can still enter while it runs.
   const roomState = practice.roomAvailable ? await roomStateOf(practice) : 'closed'
 
+  // The spot this browser took without an account, if any.
+  const ownSpot = [...practice.confirmed, ...practice.waiting].find((person) => person.isViewer && person.isGuest)
+  const spot = ownSpot ? { name: ownSpot.name, place: practice.viewer.place ?? 'waiting' } : null
+  const hasSeat = spot?.place === 'confirmed'
+
   const guestRoom = roomState !== 'closed' && (
     <div className="mt-6 border-t border-line pt-6">
-      <h2 className="font-display text-xl font-semibold">{isPast ? 'The call is still going' : 'Or enter the room as a guest'}</h2>
-      <p className="mt-1 text-sm text-muted">Type a name and you are in the call. A guest does not take a spot on the sheet.</p>
+      <h2 className="font-display text-xl font-semibold">{isPast ? 'The call is still going' : hasSeat ? 'The room' : 'Or just visit the room'}</h2>
+      <p className="mt-1 text-sm text-muted">
+        {hasSeat ? 'Your spot has a place in the call.' : 'Type a name and you are in the call as a visitor, without a spot on the sheet.'}
+      </p>
       {roomState === 'open' ? (
-        <GuestRoom practiceId={id} leaveHref={`/share/${id}`} />
+        <GuestRoom practiceId={id} leaveHref={`/share/${id}`} listedName={hasSeat ? (spot?.name ?? null) : null} />
       ) : (
         <p className="mt-3 text-sm font-medium">
           The room opens at {formatTime(roomOpensAt(practice.startsAt), timeZone)} ({formatZone(roomOpensAt(practice.startsAt), timeZone)}),{' '}
@@ -128,15 +145,18 @@ export default async function SharePage({ params }: SharePageProps) {
               </>
             ) : (
               <>
-                <p className="font-semibold">Join with an account to take a spot.</p>
-                <div className="mt-3 flex flex-wrap gap-3">
-                  <Link href={authModalPath('register', { next })} className="button button-primary">
+                <GuestSpot practiceId={id} spot={spot} isFull={practice.status === 'full'} />
+                <p className="mt-5 text-sm text-muted">
+                  With an account you get an email when the practice is confirmed or a spot frees up for you.{' '}
+                  <Link href={authModalPath('register', { next })} className="text-link">
                     Create an account
+                  </Link>{' '}
+                  or{' '}
+                  <Link href={authModalPath('login', { next })} className="text-link">
+                    log in
                   </Link>
-                  <Link href={authModalPath('login', { next })} className="button button-quiet">
-                    Log in
-                  </Link>
-                </div>
+                  .
+                </p>
 
                 <AddToCalendar practice={practice} audience="guest" icsHref={`/share/${id}/event.ics`} className="mt-5" />
                 <ShareButton

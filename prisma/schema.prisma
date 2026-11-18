@@ -36,7 +36,9 @@ model Practice {
   organizerId String
   organizer   User   @relation(fields: [organizerId], references: [id], onDelete: Cascade)
 
-  signups Signup[]
+  signups      Signup[]
+  // People without an account who took a spot with just a name. They share the order of the sheet with the signups.
+  guestSignups GuestSignup[]
 
   // When the host ended the call for everyone. Until then the room stays open past the end while people are in it.
   roomClosedAt DateTime?
@@ -175,6 +177,24 @@ model Signup {
   @@unique([practiceId, userId])
   @@index([userId])
   @@map("signups")
+}
+
+// A spot taken by someone without an account, on a public practice. The sheet shows them as not registered.
+model GuestSignup {
+  id String @id @default(cuid())
+
+  practiceId String
+  // The guest cookie of the browser that took the spot. That browser can leave or enter the room with it.
+  guestKey   String
+  name       String
+
+  // Arrival order, merged with the signups of people with an account.
+  joinedAt DateTime @default(now())
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+
+  @@unique([practiceId, guestKey])
+  @@map("guest_signups")
 }
 
 // ========================================

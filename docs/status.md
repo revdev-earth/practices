@@ -33,6 +33,9 @@ Last updated on 2026-11-19.
 - [x] Polls to find the time of a practice, answered with or without an account, with the practice posted from the chosen time and the yes answers signed up
 - [x] Polls of days as well as of times, and links to the polls from a new practice and from an empty day of the calendar
 - [x] Share button on the practice, the public page and the poll
+- [x] Spots without an account on public practices, shown as not registered, with the host able to take them off and a direct entry to the room
+- [x] Link previews with the time in the zone of the host and a picture of the practice or the poll
+- [x] A tighter month and week in the calendar
 - [x] The room stays open past the end while people are in it, and the host ends the call for everyone
 - [x] Playwright tests in `e2e/`, with their own server, database and outbox, run with `pnpm test:e2e`. They cover the account, practices, the calendar, public pages and guests, and everything added on 2026-11-18
 
@@ -40,9 +43,9 @@ The pages `/login`, `/register`, `/forgot-password` and `/reset-password` no lon
 
 ## Checks on 2026-11-19
 
-`pnpm test:e2e` passes 37 of 37 tests. `tsc --noEmit`, `eslint` and `next build` pass with no errors.
+`pnpm test:e2e` passes 43 of 43 tests. `tsc --noEmit`, `eslint` and `next build` pass with no errors.
 
-The schema gained `time_polls.kind`, with a default value, and `time_poll_options.day`, which is optional. Both are additive. Production already has the poll tables from the first deploy, so `pnpm db:prod:push` adds the two columns before the new code goes out.
+The schema gained `time_polls.kind`, with a default value, `time_poll_options.day`, which is optional, and the table `guest_signups`. All of it is additive. Production already has the poll tables from the first deploy, so `pnpm db:prod:push` adds the rest before the new code goes out.
 
 ## Checks on 2026-11-18
 
@@ -97,8 +100,8 @@ In this shell `rm` asks for confirmation and waits forever in a script. `/bin/rm
 
 ## Next step
 
-The app is deployed at `particles.didyou.fyi`. Before deploying the changes of 2026-11-19, run `pnpm db:prod:push` so production gets `time_polls.kind` and `time_poll_options.day`, and `pnpm db:staging:push` for staging.
+The app is deployed at `particles.didyou.fyi`. Before deploying the changes of 2026-11-19, run `pnpm db:prod:push` so production gets `time_polls.kind`, `time_poll_options.day` and `guest_signups`, and `pnpm db:staging:push` for staging.
 
-Then check on production the share button from a phone, a poll of days and ending a call.
+Then check on production the share button from a phone, the preview of a pasted link in WhatsApp, a spot taken without an account, a poll of days and ending a call. Chat apps keep a preview for a while, so a link pasted before the deploy can keep the old one.
 
 In one screenshot of the poll page the Next.js development indicator showed one issue. Three later runs of the same steps left the browser console clean, so its cause remains without enough evidence.

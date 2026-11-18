@@ -76,3 +76,7 @@ export const insertPractice = (practice: TestPractice) =>
 
 // The attempt limit tests lock logins on purpose. The tests after them start with no counters.
 export const clearAttemptCounters = () => withDatabase((client) => client.execute('DELETE FROM attempt_counters'))
+
+// The zone the app remembers for a person, as if they had used it from there.
+export const setTimeZoneOf = (email: string, timeZone: string) =>
+  withDatabase((client) => client.execute({ sql: 'UPDATE users SET timeZone = ? WHERE email = ?', args: [timeZone, email] }))

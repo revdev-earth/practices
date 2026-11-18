@@ -18,6 +18,7 @@ import {
   formatZone,
   formatZoneCity,
 } from '+/lib/dates'
+import { pollPreview } from '+/lib/linkPreview'
 import { prisma } from '+/lib/prisma'
 import { absoluteUrl, authModalPath, pollPath, shareablePracticePath } from '+/lib/redirects'
 import { getTimeZone } from '+/lib/timezone'
@@ -33,8 +34,15 @@ type PollPageProps = {
 
 export async function generateMetadata({ params }: PollPageProps): Promise<Metadata> {
   const { id } = await params
-  const poll = await prisma.timePoll.findUnique({ where: { id }, select: { title: true } })
-  return { title: poll ? `When: ${poll.title}` : 'Poll' }
+  const preview = await pollPreview(id)
+  if (!preview) return { title: 'Poll' }
+  const title = `When: ${preview.title}`
+  return {
+    title,
+    description: preview.description,
+    openGraph: { title, description: preview.description, url: pollPath(id), type: 'website', siteName: 'Practices' },
+    twitter: { card: 'summary_large_image', title, description: preview.description },
+  }
 }
 
 const ANSWER_MARK: Record<PollAnswer, string> = {

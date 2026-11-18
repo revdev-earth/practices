@@ -8,7 +8,7 @@ import { getUser } from '+/lib/auth'
 import { noticeCancellation, noticePollDecision, noticeSheetChanges, readSheet, rememberTimeZone } from '+/lib/practiceNotices'
 import { practiceSchema } from '+/lib/practiceRules'
 import { prisma } from '+/lib/prisma'
-import { HOME_PATH } from '+/lib/redirects'
+import { HOME_PATH, sharePath } from '+/lib/redirects'
 
 export type PracticeFormState = {
   success: boolean
@@ -46,8 +46,10 @@ const refreshPractices = () => {
   revalidatePath('/calendar')
 }
 
-// A practice posted from a poll names the poll and the time the host chose. The people with an account who said yes
-// to that time take the next spots, in the order they answered. Null when the form does not come from a poll.
+// A practice posted from a poll names the poll and the time the host chose. The people who said yes to that time
+// take the next spots, in the order they answered. Null when the form does not come from a poll.
+type PollArrival = { kind: 'member'; userId: string } | { kind: 'guest'; guestKey: string; name: string }
+
 const chosenPollTime = async (formData: FormData, organizerId: string) => {
   const pollId = String(formData.get('pollId') ?? '')
   const optionId = String(formData.get('pollOptionId') ?? '')
@@ -55,10 +57,17 @@ const chosenPollTime = async (formData: FormData, organizerId: string) => {
 
   const option = await prisma.timePollOption.findFirst({
     where: { id: optionId, poll: { id: pollId, organizerId, practiceId: null } },
-    select: { votes: { where: { answer: 'YES', userId: { not: null } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { userId: true } } },
+    select: {
+      votes: { where: { answer: 'YES' }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { userId: true, voterKey: true, name: true } },
+    },
   })
   if (!option) return { usable: false, error: 'This poll was already used or is not yours.' } as const
-  const yesVoters = option.votes.map((vote) => vote.userId as string).filter((userId) => userId !== organizerId)
+  // A person with an account, or a browser without one, with the name they answered with.
+  const yesVoters = option.votes
+    .filter((vote) => vote.userId !== organizerId)
+    .map((vote): PollArrival =>
+      vote.userId ? { kind: 'member', userId: vote.userId } : { kind: 'guest', guestKey: vote.voterKey.replace(/^guest:/, ''), name: vote.name }
+    )
   return { usable: true, pollId, optionId, yesVoters } as const
 }
 
@@ -79,7 +88,14 @@ export const createPracticeAction = async (_prevState: PracticeFormState, formDa
   try {
     // Whoever posts takes the first spot on the list. The yes answers of a poll come right after, a second apart to keep their order.
     const now = Date.now()
-    const signups = [user.id, ...(fromPoll?.yesVoters ?? [])].map((userId, index) => ({ userId, joinedAt: new Date(now + index * 1000) }))
+    // People without an account only get a spot on a public practice, the only kind they can open.
+    const yesVoters = (fromPoll?.yesVoters ?? []).filter((voter) => voter.kind === 'member' || visibility)
+    const arrivals: PollArrival[] = [{ kind: 'member', userId: user.id }, ...yesVoters]
+    const joinedAt = (index: number) => new Date(now + index * 1000)
+    const signups = arrivals.flatMap((arrival, index) => (arrival.kind === 'member' ? [{ userId: arrival.userId, joinedAt: joinedAt(index) }] : []))
+    const guestSignups = arrivals.flatMap((arrival, index) =>
+      arrival.kind === 'guest' ? [{ guestKey: arrival.guestKey, name: arrival.name, joinedAt: joinedAt(index) }] : []
+    )
     const created = await prisma.practice.create({
       data: {
         ...practice,
@@ -87,6 +103,7 @@ export const createPracticeAction = async (_prevState: PracticeFormState, formDa
         endsAt: endOf(practice.startsAt, durationMin),
         organizerId: user.id,
         signups: { create: signups },
+        guestSignups: { create: guestSignups },
         ...(fromPoll ? { timePoll: { connect: { id: fromPoll.pollId } } } : {}),
       },
       select: { id: true },
@@ -191,5 +208,22 @@ export const leavePracticeAction = async (practiceId: string): Promise<PracticeA
   noticeSheetChanges(before, await readSheet(practiceId), user.id)
 
   refreshPractices()
+  return { success: true }
+}
+
+// The host takes someone without an account off the sheet, for instance a name typed as a joke.
+export const removeGuestSpotAction = async (practiceId: string, guestSignupId: string): Promise<PracticeActionResult> => {
+  const user = await getUser()
+  if (!user) return { success: false, error: SESSION_ENDED }
+
+  const practice = await prisma.practice.findUnique({ where: { id: practiceId }, select: { organizerId: true } })
+  if (!practice || practice.organizerId !== user.id) return { success: false, error: 'Only the host can take someone off the sheet.' }
+
+  const before = await readSheet(practiceId)
+  await prisma.guestSignup.deleteMany({ where: { id: guestSignupId, practiceId } })
+  noticeSheetChanges(before, await readSheet(practiceId), user.id)
+
+  refreshPractices()
+  revalidatePath(sharePath(practiceId))
   return { success: true }
 }
