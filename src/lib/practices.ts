@@ -164,3 +164,16 @@ export const getPractice = async (id: string, viewerId: string | Viewer): Promis
   const viewer = typeof viewerId === 'string' ? { userId: viewerId } : viewerId
   return practice ? toPracticeView(practice, viewer, new Date()) : null
 }
+
+// "Dana Reyes" reads as "Dana R." on a page anyone with the link can open. The app shows full names only to people with an account.
+export const shortName = (name: string) => {
+  const words = name.trim().split(/\s+/)
+  if (words.length < 2) return name.trim()
+  return `${words[0]} ${words[words.length - 1][0]?.toUpperCase() ?? ''}.`
+}
+
+// The sheet as the public page shows it: short names, except the viewer's own.
+export const withPublicNames = (practice: PracticeView): PracticeView => {
+  const shorten = (person: Participant) => (person.isViewer ? person : { ...person, name: shortName(person.name) })
+  return { ...practice, confirmed: practice.confirmed.map(shorten), waiting: practice.waiting.map(shorten) }
+}

@@ -11,10 +11,12 @@ import { publicPracticePreview } from '+/lib/linkPreview'
 import { readGuestKey } from '+/lib/guests'
 import { formatDuration, formatLongDate, formatTime, formatZone, formatZoneCity } from '+/lib/dates'
 import { ROOM_OPENS_MINUTES_BEFORE, roomOpensAt, roomStateOf } from '+/lib/livekit'
-import { getPractice } from '+/lib/practices'
+import { getPractice, withPublicNames } from '+/lib/practices'
 import { isWebLink, MODE_LABELS } from '+/lib/practiceRules'
 import { absoluteUrl, authModalPath, sharePath } from '+/lib/redirects'
 import { getTimeZone } from '+/lib/timezone'
+
+import Roster from '../../practices/_/Roster'
 
 import GuestRoom from './_/GuestRoom'
 import GuestSpot from './_/GuestSpot'
@@ -74,7 +76,7 @@ export default async function SharePage({ params }: SharePageProps) {
   )
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4 sm:px-6">
+    <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-4 sm:px-6">
       <header className="flex items-center justify-between py-5">
         <Wordmark href="/" />
         <Link
@@ -85,7 +87,8 @@ export default async function SharePage({ params }: SharePageProps) {
         </Link>
       </header>
 
-      <main className="pb-16">
+      {/* As on the page for members: the practice, and the sheet beside it on a wide screen or below it on a phone. */}
+      <main className="grid gap-6 pb-16 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <article className="rounded-xl border border-line bg-sheet p-6 sm:p-8">
           <StatusMark practice={practice} drawn />
           <h1 className="mt-4 font-display text-4xl leading-tight font-bold tracking-tight text-balance">{practice.title}</h1>
@@ -171,6 +174,9 @@ export default async function SharePage({ params }: SharePageProps) {
             )}
           </div>
         </article>
+
+        {/* Who is going, with short names, since anyone with the link can open this page. */}
+        <Roster practice={withPublicNames(practice)} />
       </main>
     </div>
   )

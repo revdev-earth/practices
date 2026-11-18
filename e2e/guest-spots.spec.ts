@@ -33,6 +33,10 @@ test.describe('Spots without an account', () => {
     await wendy.getByLabel('Your name').fill('Walk-in Wendy')
     await wendy.getByRole('button', { name: 'Take a spot' }).click()
     await expect(wendy.getByText('You have a spot as Walk-in Wendy, not registered.')).toBeVisible()
+    // Her own name is written in full and marked as hers. The others are shortened.
+    const publicSheet = wendy.locator('section[aria-labelledby="roster-heading"]')
+    await expect(publicSheet.getByRole('listitem').filter({ hasText: 'Walk-in Wendy' }).getByText('you')).toBeVisible()
+    await expect(publicSheet.getByText('Kenji M.')).toBeVisible()
 
     // The third spot confirms the practice, so the people with an account hear about it.
     await expectEmail(people.dana, new RegExp(`^${title} is confirmed$`))

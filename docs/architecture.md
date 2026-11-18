@@ -199,7 +199,7 @@ A guest with a confirmed spot enters the room with the name of the spot, without
 
 ## Public practices and guests
 
-`Practice.isPublic` is chosen in the form, private by default. A public practice has the page `/share/[id]`, which anyone can open with no account. It shows the practice, the host, how many spots are taken and no names from the sign-up sheet. A private practice answers 404 at that address, so its link gives nothing away. Someone who is logged in is sent to the full page at `/practices/[id]`.
+`Practice.isPublic` is chosen in the form, private by default. A public practice has the page `/share/[id]`, which anyone can open with no account. It shows the practice, the host and the sign-up sheet beside it, with short names such as `Dana R.` from `withPublicNames` in `src/lib/practices.ts`. The link can travel beyond the group, and people with an account signed up when only other members saw their names. A guest sees their own name in full, marked as theirs. The page for members keeps the full names. A private practice answers 404 at that address, so its link gives nothing away. Someone who is logged in is sent to the full page at `/practices/[id]`.
 
 If the public practice has a Practices room, the page also lets a visitor into the call with a name, without a spot on the sheet. `enterAsGuestAction` checks everything on the server: the name, that the practice is public, has a room, has not ended and that the room is open. A guest has no spot on the sheet.
 

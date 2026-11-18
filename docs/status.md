@@ -36,6 +36,7 @@ Last updated on 2026-11-19.
 - [x] Spots without an account on public practices, shown as not registered, with the host able to take them off and a direct entry to the room
 - [x] Link previews with the time in the zone of the host and a picture of the practice or the poll
 - [x] A tighter month and week in the calendar
+- [x] The sign-up sheet on the public page, with short names and the guest's own name in full
 - [x] The room stays open past the end while people are in it, and the host ends the call for everyone
 - [x] Playwright tests in `e2e/`, with their own server, database and outbox, run with `pnpm test:e2e`. They cover the account, practices, the calendar, public pages and guests, and everything added on 2026-11-18
 

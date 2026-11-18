@@ -21,7 +21,7 @@ test.describe('Public practices', () => {
     await expect(page.getByText('Private: book club')).toHaveCount(0)
   })
 
-  test('a public practice shows to anyone without the names on its sheet, and members go to the full page', async ({ page }) => {
+  test('a public practice shows to anyone with short names on its sheet, and members go to the full page', async ({ page }) => {
     const id = await insertPractice({
       title: 'Public: street photography walk',
       startsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
@@ -35,6 +35,10 @@ test.describe('Public practices', () => {
     await expect(page.getByRole('heading', { name: 'Public: street photography walk' })).toBeVisible()
     await expect(page.getByText('Tom Becker')).toBeVisible()
     await expect(page.getByText('3 of 6 taken')).toBeVisible()
+    // Anyone with the link sees who is going, with short names.
+    const sheet = page.locator('section[aria-labelledby="roster-heading"]')
+    await expect(sheet.getByText('Priya N.')).toBeVisible()
+    await expect(sheet.getByText('Noah K.')).toBeVisible()
     await expect(page.getByText('Priya Nair')).toHaveCount(0)
 
     await logIn(page, people.kenji)

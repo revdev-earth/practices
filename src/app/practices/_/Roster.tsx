@@ -61,10 +61,9 @@ export default function Roster({ practice }: { practice: PracticeView }) {
               ) : (
                 <span className="sr-only">Free spot</span>
               )}
-              {isMinimumLine && !isPast && (
-                <span className="ml-auto shrink-0 pl-2 text-right text-xs text-muted">
-                  {person ? 'Minimum reached' : 'Confirmed once this line is filled'}
-                </span>
+              {/* Once someone fills the line, the heavy rule and the status of the practice already say it is confirmed. */}
+              {isMinimumLine && !isPast && !person && (
+                <span className="ml-auto shrink-0 pl-2 text-right text-xs text-muted">Confirmed once this line is filled</span>
               )}
             </li>
           )
