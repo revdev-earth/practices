@@ -73,13 +73,31 @@ const loadGoogleFont = async (family: string, weight: 400 | 700, text: string) =
   return { name: family, data: await (await fetch(url)).arrayBuffer(), weight, style: 'normal' as const }
 }
 
+// The letters every picture uses, so one download of each typeface serves every practice and poll on a warm server.
+const DISPLAY_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÁÉÍÓÚÑÜáéíóúñü0123456789 .,:;!?¿¡()&-+/\'"'
+const BODY_LETTERS = DISPLAY_LETTERS
+
+let cachedFonts: Promise<Awaited<ReturnType<typeof loadGoogleFont>>[]> | null = null
+
+// The typefaces for a picture. A title with letters outside the common set asks for them on its own.
 export const loadPreviewFonts = async (displayText: string, bodyText: string) => {
+  const commonLetters = new Set(DISPLAY_LETTERS)
+  const fitsCommonSet = [...displayText, ...bodyText].every((letter) => commonLetters.has(letter))
   try {
-    return await Promise.all([loadGoogleFont('Bricolage Grotesque', 700, displayText), loadGoogleFont('Instrument Sans', 400, bodyText)])
+    if (!fitsCommonSet) {
+      return await Promise.all([loadGoogleFont('Bricolage Grotesque', 700, displayText), loadGoogleFont('Instrument Sans', 400, bodyText)])
+    }
+    cachedFonts ??= Promise.all([loadGoogleFont('Bricolage Grotesque', 700, DISPLAY_LETTERS), loadGoogleFont('Instrument Sans', 400, BODY_LETTERS)])
+    return await cachedFonts
   } catch {
+    // A failed download is tried again on the next picture.
+    cachedFonts = null
     return []
   }
 }
+
+// Chat apps give up on a slow picture. The CDN keeps each one a few minutes and serves the old one while it draws a new one.
+export const PREVIEW_HEADERS = { 'Cache-Control': 'public, max-age=300, s-maxage=300, stale-while-revalidate=86400' }
 
 export const DISPLAY_FONT = "'Bricolage Grotesque'"
 const TEXT_FONT = "'Instrument Sans'"

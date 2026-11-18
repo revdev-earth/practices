@@ -35,6 +35,8 @@ test.describe('Link previews', () => {
     const image = await request.get(new URL(imageUrl).pathname + new URL(imageUrl).search)
     expect(image.status()).toBe(200)
     expect(image.headers()['content-type']).toBe('image/png')
+    // The CDN keeps the picture, so a chat app fetching it again gets it at once.
+    expect(image.headers()['cache-control']).toContain('s-maxage=300')
 
     await page.goto(new URL(imageUrl).pathname + new URL(imageUrl).search)
     await page.screenshot({ path: 'test-results/preview-practice.png' })

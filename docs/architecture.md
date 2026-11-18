@@ -225,7 +225,9 @@ The page of a new practice and an empty day of the calendar link to the polls, f
 
 A chat app fetches a pasted link from its own server and shows its title, description and image. `src/lib/linkPreview.ts` writes them for a public practice and for a poll. The app has no time zone of the reader there, so the time goes in the zone of the host, from `User.timeZone`, with the zone written out. A private practice gives no details.
 
-`opengraph-image.tsx` under `/share/[id]` and `/polls/[id]` draws a picture of 1200 by 630 with `next/og`: a white sheet on the desk with the status, the title, the day, the time, the place and the spots. `src/lib/previewImage.tsx` holds the shared parts and loads Bricolage Grotesque and Instrument Sans from Google Fonts, only the letters drawn. Without them the picture keeps the default typeface. `src/proxy.ts` leaves the picture of a poll public.
+`opengraph-image.tsx` under `/share/[id]` and `/polls/[id]` draws a picture of 1200 by 630 with `next/og`: a white sheet on the desk with the status, the title, the day, the time, the place and the spots. `src/lib/previewImage.tsx` holds the shared parts and loads Bricolage Grotesque and Instrument Sans from Google Fonts. A warm server downloads them once, with the letters of English and Spanish, and a title with other letters asks for its own. Without them the picture keeps the default typeface. Chat apps give up on a slow picture, so each one carries `s-maxage=300` and `stale-while-revalidate`, and the CDN of Vercel serves it at once after the first time.
+
+A chat app keeps the preview of a link for a while. A link pasted before a change keeps the old preview, and the same link with a query such as `?v=2` gets a new one. `src/proxy.ts` leaves the picture of a poll public.
 
 ## Sharing
 

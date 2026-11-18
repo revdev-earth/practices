@@ -1,7 +1,16 @@
 import { ImageResponse } from 'next/og'
 
 import { pollPreview } from '+/lib/linkPreview'
-import { DISPLAY_FONT, loadPreviewFonts, PREVIEW_COLORS, PREVIEW_SIZE, PreviewMark, PreviewSheet, titleSize } from '+/lib/previewImage'
+import {
+  DISPLAY_FONT,
+  loadPreviewFonts,
+  PREVIEW_COLORS,
+  PREVIEW_HEADERS,
+  PREVIEW_SIZE,
+  PreviewMark,
+  PreviewSheet,
+  titleSize,
+} from '+/lib/previewImage'
 
 export const alt = 'A poll to find the time of a practice'
 export const size = PREVIEW_SIZE
@@ -43,6 +52,6 @@ export default async function Image({ params }: { params: Promise<{ id: string }
       </div>
       <div style={{ display: 'flex', fontSize: 28, color: PREVIEW_COLORS.muted }}>Answer yes, if needed or no, with or without an account.</div>
     </PreviewSheet>,
-    { ...size, fonts }
+    { ...size, fonts, headers: PREVIEW_HEADERS }
   )
 }

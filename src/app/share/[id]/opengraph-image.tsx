@@ -2,7 +2,16 @@ import { ImageResponse } from 'next/og'
 
 import { publicPracticePreview } from '+/lib/linkPreview'
 import type { PracticeStatus } from '+/lib/practiceRules'
-import { DISPLAY_FONT, loadPreviewFonts, PREVIEW_COLORS, PREVIEW_SIZE, PreviewMark, PreviewSheet, titleSize } from '+/lib/previewImage'
+import {
+  DISPLAY_FONT,
+  loadPreviewFonts,
+  PREVIEW_COLORS,
+  PREVIEW_HEADERS,
+  PREVIEW_SIZE,
+  PreviewMark,
+  PreviewSheet,
+  titleSize,
+} from '+/lib/previewImage'
 
 export const alt = 'A practice on Practices'
 export const size = PREVIEW_SIZE
@@ -33,7 +42,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
       <PreviewSheet>
         <div style={{ display: 'flex', marginTop: 'auto', fontSize: 64, fontFamily: DISPLAY_FONT, fontWeight: 700 }}>Group practice sessions</div>
       </PreviewSheet>,
-      { ...size, fonts }
+      { ...size, fonts, headers: PREVIEW_HEADERS }
     )
   }
 
@@ -86,6 +95,6 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         </div>
       </div>
     </PreviewSheet>,
-    { ...size, fonts }
+    { ...size, fonts, headers: PREVIEW_HEADERS }
   )
 }
