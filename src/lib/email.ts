@@ -1,14 +1,15 @@
 import { Resend } from 'resend'
 
-import { authModalPath } from '+/lib/redirects'
-
-const appUrl = () => process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+import { absoluteUrl, authModalPath } from '+/lib/redirects'
 
 const FONT_STACK = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 
+// Notices about a practice someone signed up for. See src/lib/practiceNotices.ts.
+export type PracticeNoticeKind = 'practice confirmed' | 'spot freed' | 'practice cancelled' | 'practice moved' | 'poll decided'
+
 type OutgoingEmail = {
   // Names the email in the server log. The subject stays out of the log because it can carry the confirmation code.
-  kind: 'password reset' | 'email confirmation'
+  kind: 'password reset' | 'email confirmation' | PracticeNoticeKind
   to: string
   subject: string
   html: string
@@ -16,9 +17,20 @@ type OutgoingEmail = {
   developmentNote: string
 }
 
+// The browser tests read the emails from a file instead of an inbox. It only works outside production.
+const writeToTestOutbox = async (email: Omit<OutgoingEmail, 'developmentNote'>) => {
+  const outbox = process.env.EMAIL_OUTBOX
+  if (!outbox || process.env.NODE_ENV === 'production') return false
+  const { appendFile } = await import('node:fs/promises')
+  await appendFile(outbox, `${JSON.stringify({ ...email, sentAt: new Date().toISOString() })}\n`)
+  return true
+}
+
 const deliver = async ({ kind, to, subject, html, developmentNote }: OutgoingEmail) => {
   const apiKey = process.env.RESEND_API_KEY
   const from = process.env.FROM_EMAIL
+
+  if (await writeToTestOutbox({ kind, to, subject, html })) return
 
   if (!apiKey || !from) {
     if (process.env.NODE_ENV !== 'production') console.log(`🔐 ${developmentNote}`)
@@ -39,7 +51,7 @@ const emailLayout = (heading: string, body: string) => `
 
 export const sendPasswordResetEmail = async (email: string, token: string) => {
   // The link opens the landing page with the new password form on top.
-  const resetUrl = `${appUrl()}${authModalPath('reset', { token })}`
+  const resetUrl = absoluteUrl(authModalPath('reset', { token }))
 
   await deliver({
     kind: 'password reset',
@@ -73,5 +85,35 @@ export const sendEmailConfirmationCode = async (email: string, code: string, val
         <p style="font-size: 14px; line-height: 1.5; color: #5a6282; margin: 0;">If you did not create a Practices account, ignore this email. Without the code the account stays closed.</p>
       `
     ),
+  })
+}
+
+// Titles and names are typed by people, so they are escaped before they go into the HTML of an email.
+const escapeHtml = (text: string) =>
+  text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
+
+type PracticeNotice = {
+  kind: PracticeNoticeKind
+  to: string
+  subject: string
+  heading: string
+  // Each one becomes a paragraph.
+  paragraphs: string[]
+  // The button at the end, when there is a page to open.
+  action?: { label: string; href: string }
+}
+
+export const sendPracticeNotice = async ({ kind, to, subject, heading, paragraphs, action }: PracticeNotice) => {
+  const body = paragraphs.map((text) => `<p style="font-size: 16px; line-height: 1.5; margin: 0 0 16px;">${escapeHtml(text)}</p>`).join('')
+  const button = action
+    ? `<p style="margin: 24px 0 0;"><a href="${escapeHtml(action.href)}" style="display: inline-block; background: #2440d8; color: #ffffff; text-decoration: none; font-weight: 600; padding: 12px 20px; border-radius: 8px;">${escapeHtml(action.label)}</a></p>`
+    : ''
+
+  await deliver({
+    kind,
+    to,
+    subject,
+    developmentNote: `${subject} (to ${to})`,
+    html: emailLayout(escapeHtml(heading), body + button),
   })
 }

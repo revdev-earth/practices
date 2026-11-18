@@ -135,6 +135,7 @@ const resetDatabase = async () => {
   await prisma.session.deleteMany({})
   await prisma.account.deleteMany({})
   await prisma.verification.deleteMany({})
+  await prisma.attemptCounter.deleteMany({})
   await prisma.user.deleteMany({})
 }
 

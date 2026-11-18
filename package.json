@@ -19,7 +19,9 @@
     "dev:prod": "node scripts/remote-db.mjs prod sh -c 'prisma generate && next dev'",
     "db:prod:push": "node scripts/turso-push.mjs prod",
     "db:prod:studio": "node scripts/remote-db.mjs prod prisma studio",
-    "livekit": "node scripts/livekit.mjs"
+    "livekit": "node scripts/livekit.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@libsql/client": "0.17.4",
@@ -39,6 +41,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@tailwindcss/postcss": "^4.3.5",
     "@types/node": "^22.20.1",
     "@types/react": "^19.3.0",

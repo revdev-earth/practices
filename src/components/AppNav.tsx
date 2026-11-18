@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-// The same practices seen two ways: laid out on the month, or as a list with filters.
+// The same practices seen two ways, laid out on the month or as a list with filters, and the polls that find their time.
 const DESTINATIONS = [
   { href: '/calendar', label: 'Calendar' },
   { href: '/practices', label: 'List' },
+  { href: '/polls', label: 'Polls' },
 ]
 
 export default function AppNav({ className = '' }: { className?: string }) {
@@ -15,7 +16,7 @@ export default function AppNav({ className = '' }: { className?: string }) {
   return (
     <nav aria-label="Main" className={`flex items-center gap-5 ${className}`}>
       {DESTINATIONS.map((destination) => {
-        const isCurrent = pathname === destination.href
+        const isCurrent = pathname === destination.href || (destination.href === '/polls' && pathname.startsWith('/polls/'))
         return (
           <Link
             key={destination.href}

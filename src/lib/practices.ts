@@ -33,6 +33,9 @@ export type PracticeView = {
   roomAvailable: boolean
   // The host chose a room of the video service. It stays true even while the service is not configured.
   videoRoom: boolean
+  isPublic: boolean
+  // When the host ended the call for everyone.
+  roomClosedAt: Date | null
   minParticipants: number
   maxParticipants: number
   organizer: { id: string; name: string }
@@ -69,6 +72,8 @@ const toPracticeView = (practice: PracticeRecord, viewerId: string, now: Date): 
     mode: practice.mode,
     location: practice.location,
     videoRoom: practice.mode === 'ONLINE' && practice.videoRoom,
+    isPublic: practice.isPublic,
+    roomClosedAt: practice.roomClosedAt,
     roomAvailable: practice.mode === 'ONLINE' && practice.videoRoom && videoRoomsConfigured,
     minParticipants: practice.minParticipants,
     maxParticipants: practice.maxParticipants,

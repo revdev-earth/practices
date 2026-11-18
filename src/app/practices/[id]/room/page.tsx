@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 
 import { requireUser } from '+/lib/auth'
 import { formatTime, formatZone } from '+/lib/dates'
-import { createRoomPass, isRoomOpen, ROOM_OPENS_MINUTES_BEFORE, roomOpensAt, VIDEO_ROOM_URL } from '+/lib/livekit'
+import { createRoomPass, ROOM_OPENS_MINUTES_BEFORE, roomOpensAt, roomStateOf, VIDEO_ROOM_URL } from '+/lib/livekit'
 import { getPractice } from '+/lib/practices'
 import { getTimeZone } from '+/lib/timezone'
 
@@ -40,8 +40,13 @@ export default async function PracticeRoomPage({ params }: RoomPageProps) {
   if (!practice.roomAvailable) {
     return <Closed practiceId={id} title="The room is not available" text="The video service is not set up right now. Try again later." />
   }
-  if (practice.status === 'past') {
-    return <Closed practiceId={id} title="This practice ended" text="The room closed when the practice ended." />
+  const roomState = await roomStateOf(practice)
+  if (roomState === 'closed') {
+    return practice.roomClosedAt ? (
+      <Closed practiceId={id} title="The call ended" text="The host ended the call for everyone." />
+    ) : (
+      <Closed practiceId={id} title="This practice ended" text="The room closed after the last person left." />
+    )
   }
   if (practice.viewer.place !== 'confirmed') {
     return (
@@ -55,7 +60,7 @@ export default async function PracticeRoomPage({ params }: RoomPageProps) {
     )
   }
 
-  if (!isRoomOpen(practice.startsAt)) {
+  if (roomState === 'waiting') {
     const opensAt = roomOpensAt(practice.startsAt)
     return (
       <Closed
@@ -69,6 +74,7 @@ export default async function PracticeRoomPage({ params }: RoomPageProps) {
   const token = await createRoomPass({
     practiceId: id,
     maxParticipants: practice.maxParticipants,
+    isPublic: practice.isPublic,
     endsAt: practice.endsAt,
     person: { id: user.id, name: user.name },
   })
@@ -82,7 +88,7 @@ export default async function PracticeRoomPage({ params }: RoomPageProps) {
         </Link>
         <p className="truncate text-sm font-semibold">{practice.title}</p>
       </div>
-      <VideoRoom serverUrl={VIDEO_ROOM_URL} token={token} leaveHref={`/practices/${id}`} />
+      <VideoRoom serverUrl={VIDEO_ROOM_URL} token={token} leaveHref={`/practices/${id}`} practiceId={id} isHost={practice.viewer.isOrganizer} />
     </div>
   )
 }

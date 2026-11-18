@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
 import { getUser } from '+/lib/auth'
+import { noticeCancellation, noticePollDecision, noticeSheetChanges, readSheet, rememberTimeZone } from '+/lib/practiceNotices'
 import { practiceSchema } from '+/lib/practiceRules'
 import { prisma } from '+/lib/prisma'
 import { HOME_PATH } from '+/lib/redirects'
@@ -30,6 +31,7 @@ const parsePracticeForm = (formData: FormData) => {
     durationMin: text('durationMin'),
     mode: text('mode'),
     videoRoom: text('videoRoom'),
+    visibility: text('visibility'),
     location: text('location'),
     minParticipants: text('minParticipants'),
     maxParticipants: text('maxParticipants'),
@@ -44,6 +46,22 @@ const refreshPractices = () => {
   revalidatePath('/calendar')
 }
 
+// A practice posted from a poll names the poll and the time the host chose. The people with an account who said yes
+// to that time take the next spots, in the order they answered. Null when the form does not come from a poll.
+const chosenPollTime = async (formData: FormData, organizerId: string) => {
+  const pollId = String(formData.get('pollId') ?? '')
+  const optionId = String(formData.get('pollOptionId') ?? '')
+  if (!pollId) return null
+
+  const option = await prisma.timePollOption.findFirst({
+    where: { id: optionId, poll: { id: pollId, organizerId, practiceId: null } },
+    select: { votes: { where: { answer: 'YES', userId: { not: null } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { userId: true } } },
+  })
+  if (!option) return { usable: false, error: 'This poll was already used or is not yours.' } as const
+  const yesVoters = option.votes.map((vote) => vote.userId as string).filter((userId) => userId !== organizerId)
+  return { usable: true, pollId, optionId, yesVoters } as const
+}
+
 export const createPracticeAction = async (_prevState: PracticeFormState, formData: FormData): Promise<PracticeFormState> => {
   const user = await getUser()
   if (!user) return { success: false, errors: { form: [SESSION_ENDED] } }
@@ -51,22 +69,31 @@ export const createPracticeAction = async (_prevState: PracticeFormState, formDa
   const parsed = parsePracticeForm(formData)
   if (!parsed.success) return { success: false, errors: z.flattenError(parsed.error).fieldErrors }
 
-  const { durationMin, ...practice } = parsed.data
+  const { durationMin, visibility, ...practice } = parsed.data
   if (practice.startsAt.getTime() < Date.now()) return { success: false, errors: { startsAt: ['That time has already passed'] } }
+
+  const fromPoll = await chosenPollTime(formData, user.id)
+  if (fromPoll && !fromPoll.usable) return { success: false, errors: { form: [fromPoll.error] } }
 
   let practiceId: string
   try {
-    // Whoever posts takes the first spot on the list.
+    // Whoever posts takes the first spot on the list. The yes answers of a poll come right after, a second apart to keep their order.
+    const now = Date.now()
+    const signups = [user.id, ...(fromPoll?.yesVoters ?? [])].map((userId, index) => ({ userId, joinedAt: new Date(now + index * 1000) }))
     const created = await prisma.practice.create({
       data: {
         ...practice,
+        isPublic: visibility,
         endsAt: endOf(practice.startsAt, durationMin),
         organizerId: user.id,
-        signups: { create: { userId: user.id } },
+        signups: { create: signups },
+        ...(fromPoll ? { timePoll: { connect: { id: fromPoll.pollId } } } : {}),
       },
       select: { id: true },
     })
     practiceId = created.id
+    await rememberTimeZone(user.id)
+    if (fromPoll) await noticePollDecision(practiceId, fromPoll.optionId, user.id)
   } catch (error) {
     console.error('Posting the practice failed:', error)
     return { success: false, errors: { form: ['The practice could not be posted. Try again.'] } }
@@ -88,16 +115,19 @@ export const updatePracticeAction = async (practiceId: string, _prevState: Pract
   if (current.organizerId !== user.id) return { success: false, errors: { form: ['Only the organizer can edit this practice.'] } }
   if (current.endsAt < new Date()) return { success: false, errors: { form: ['This practice already ended and can no longer be edited.'] } }
 
-  const { durationMin, ...practice } = parsed.data
+  const { durationMin, visibility, ...practice } = parsed.data
   // A practice that already started keeps its time. Only moving the date into the past is rejected.
   const movedStart = practice.startsAt.getTime() !== current.startsAt.getTime()
   if (movedStart && practice.startsAt.getTime() < Date.now()) return { success: false, errors: { startsAt: ['That time has already passed'] } }
 
   try {
+    const before = await readSheet(practiceId)
     await prisma.practice.update({
       where: { id: practiceId },
-      data: { ...practice, endsAt: endOf(practice.startsAt, durationMin) },
+      data: { ...practice, isPublic: visibility, endsAt: endOf(practice.startsAt, durationMin) },
     })
+    // A new maximum can move people up from the waitlist, a new minimum can confirm the practice, a new time concerns everyone.
+    noticeSheetChanges(before, await readSheet(practiceId), user.id)
   } catch (error) {
     console.error('Saving the practice failed:', error)
     return { success: false, errors: { form: ['The changes could not be saved. Try again.'] } }
@@ -112,8 +142,10 @@ export const deletePracticeAction = async (practiceId: string): Promise<Practice
   const user = await getUser()
   if (!user) return { success: false, error: SESSION_ENDED }
 
+  const before = await readSheet(practiceId)
   const deleted = await prisma.practice.deleteMany({ where: { id: practiceId, organizerId: user.id } })
   if (deleted.count === 0) return { success: false, error: 'Only the organizer can delete this practice.' }
+  noticeCancellation(before, user.name, user.id)
 
   refreshPractices()
   redirect(HOME_PATH)
@@ -133,12 +165,15 @@ export const joinPracticeAction = async (practiceId: string): Promise<PracticeAc
   const open = await findOpenPractice(practiceId)
   if (!open.success) return open
 
+  const before = await readSheet(practiceId)
   // Joining twice changes nothing: the original place on the list is kept.
   await prisma.signup.upsert({
     where: { practiceId_userId: { practiceId, userId: user.id } },
     create: { practiceId, userId: user.id },
     update: {},
   })
+  await rememberTimeZone(user.id)
+  noticeSheetChanges(before, await readSheet(practiceId), user.id)
 
   refreshPractices()
   return { success: true }
@@ -151,7 +186,9 @@ export const leavePracticeAction = async (practiceId: string): Promise<PracticeA
   const open = await findOpenPractice(practiceId)
   if (!open.success) return open
 
+  const before = await readSheet(practiceId)
   await prisma.signup.deleteMany({ where: { practiceId, userId: user.id } })
+  noticeSheetChanges(before, await readSheet(practiceId), user.id)
 
   refreshPractices()
   return { success: true }

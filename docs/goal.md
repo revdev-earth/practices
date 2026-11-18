@@ -66,18 +66,34 @@ Dates are formatted with the `en-US` locale and a 24 hour clock, which reads the
 
 A third request, on 2026-11-17, asked for rooms inside the app. Online practices can use a room of their own, built with LiveKit as in the `lives` project, or an external link. Only people with a confirmed spot enter. The room opens 15 minutes before the start and closes when the practice ends.
 
+A fourth request, on 2026-11-18, asked for public and private practices. A public practice has a page that anyone can open from a shared link with no account. If it has a room, a guest enters the call by typing a name and takes no spot on the sheet. A private practice needs an account. New practices are private. Guests have 10 extra places in the room.
+
+On 2026-11-18 the work went on with the ideas for later, one after another, while the owner was away. These came out of it.
+
+A practice can be added to Google Calendar or downloaded as an `.ics` file for Apple Calendar, Outlook and the rest.
+
+Logging in, asking for a reset link and creating accounts have limits per email and per address.
+
+The calendar has a week view next to the month.
+
+People get an email when their practice is confirmed, when they move up from the waitlist, when the host moves the time and when the host cancels. Moving the time and cancelling were not in the list of ideas. They use the same mechanism and keep people from showing up at the wrong time.
+
+The host of a call splits the people into groups of a chosen size, moves people between them, visits any group and brings everyone back, as the idea described.
+
+Each person in a video room chooses how it looks: a grid with as many people as fit or a fixed number per screen, a speaker view, or one person pinned.
+
+The walk through became Playwright tests in `e2e/`.
+
+A fifth request, on 2026-11-18, asked for two things. This is a faithful translation.
+
+> We also want polls to find out which times would be best for the practice, and when a practice starts the room is only removed when someone decides, not when the time runs out.
+
+The answers to the questions that followed set the shape. The poll comes before the practice: the host proposes times, people answer, and the host posts the practice at the chosen time. Anyone with the link answers, with an account or with just a name. Each time takes yes, if needed or no. Once the time of the practice is up, the room stays while people are in it, until the host ends the call or a few minutes after the last person leaves.
+
 ## Ideas for later
 
-Email notices when a practice gets confirmed or when someone moves up from the waitlist. That needs the time zone stored on the user, because an email is built without a browser.
-
-An `.ics` file or a link to add the practice to a calendar.
-
-Private practices with an invitation link.
+Recording a session from the video room. The host decides to record, with no vote from the group. A visible notice tells everyone while it runs. Whoever does not agree can leave the call, or tell the host, and their image is not kept. LiveKit offers recording through egress, which needs storage for the files.
 
 Per participant roles or preferences, like the guide and subject roles in the prototype.
 
-Browser tests with Playwright, as in properties. The walk through script used for the checks covers the flows and can become those tests.
-
-A limit on how often one visitor can try a login or ask for a password reset. Today only the email codes are limited.
-
-A week view of the calendar for people who host many practices.
+A reminder email shortly before a practice starts. It needs a scheduled job, such as a Vercel cron.

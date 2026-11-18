@@ -9,6 +9,9 @@ export const PRACTICE_LIMITS = {
   participants: { min: 2, max: 50 },
 } as const
 
+// The name someone with no account types to enter a public practice.
+export const GUEST_NAME_LIMITS = { min: 2, max: 40 } as const
+
 export const DURATION_OPTIONS = [30, 45, 60, 90, 120, 180]
 
 export const PRACTICE_MODES = ['ONLINE', 'IN_PERSON'] as const
@@ -45,6 +48,11 @@ export const practiceSchema = z
       .string()
       .optional()
       .transform((value) => value === 'yes'),
+    // "public" or "private". Anything else counts as private.
+    visibility: z
+      .string()
+      .optional()
+      .transform((value) => value === 'public'),
     location: z.string().trim().max(location.max, `It can have up to ${location.max} characters`),
     minParticipants: participantCount('minimum'),
     maxParticipants: participantCount('maximum'),

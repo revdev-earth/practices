@@ -1,6 +1,17 @@
 // Where a person lands after logging in.
 export const HOME_PATH = '/calendar'
 
+// Full address of a page, for emails, calendar files and the summary people paste in other apps.
+export const absoluteUrl = (path: string) => `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}${path}`
+
+export const practicePath = (practiceId: string) => `/practices/${practiceId}`
+export const roomPath = (practiceId: string) => `/practices/${practiceId}/room`
+export const sharePath = (practiceId: string) => `/share/${practiceId}`
+export const pollPath = (pollId: string) => `/polls/${pollId}`
+
+// The link that works for everyone who receives it: the public page when there is one, else the page behind the login.
+export const shareablePracticePath = ({ id, isPublic }: { id: string; isPublic: boolean }) => (isPublic ? sharePath(id) : practicePath(id))
+
 // Only internal paths are accepted, so a tampered link cannot take anyone off the site after login.
 export const safeNextPath = (next: unknown): string => {
   if (typeof next !== 'string') return HOME_PATH
@@ -24,11 +35,15 @@ export const authModalPath = (view: AuthView, { next, token }: { next?: string |
   return `/?${params.toString()}`
 }
 
-// The calendar opens on a month, or on a day, which also selects the month that holds it.
-export const calendarPath = ({ month, day }: { month?: string; day?: string } = {}) => {
+// The calendar shows a month or a week. It opens on a month, or on a day, which also selects the month or the week that holds it.
+export const CALENDAR_VIEWS = ['month', 'week'] as const
+export type CalendarView = (typeof CALENDAR_VIEWS)[number]
+
+export const calendarPath = ({ view = 'month', month, day }: { view?: CalendarView; month?: string; day?: string } = {}) => {
   const params = new URLSearchParams()
+  if (view === 'week') params.set('view', 'week')
   if (day) params.set('day', day)
-  else if (month) params.set('month', month)
+  else if (month && view === 'month') params.set('month', month)
   const query = params.toString()
   return query ? `/calendar?${query}` : '/calendar'
 }

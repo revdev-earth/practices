@@ -2,6 +2,7 @@
 
 import { requestPasswordResetAction, type AuthFormState } from '+/actions/auth'
 import Field from '+/components/Field'
+import FormError from '+/components/FormError'
 import { useFormAction } from '+/hooks/useFormAction'
 
 const initialState: AuthFormState = { success: false }
@@ -36,6 +37,8 @@ export default function ForgotPasswordForm({ onBackToLogin }: { onBackToLogin: (
               className="field-input"
             />
           </Field>
+
+          <FormError message={errors.form?.[0]} />
 
           <button type="submit" disabled={isPending} className="button button-primary w-full">
             {isPending ? 'Sending the link…' : 'Send reset link'}

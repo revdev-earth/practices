@@ -5,6 +5,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
+import { clearAttempts, takeAttempt, takeAttempts, tryAgainLater, visitorAddress } from '+/lib/attemptLimits'
 import { authServer, CONFIRMATION_CODE_LENGTH, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '+/lib/auth'
 import {
   accountAcceptsPassword,
@@ -13,6 +14,7 @@ import {
   sendConfirmationCode,
   type ConfirmationCodeDelivery,
 } from '+/lib/emailConfirmation'
+import { rememberTimeZone } from '+/lib/practiceNotices'
 import { safeNextPath } from '+/lib/redirects'
 
 // The account exists and waits for the code sent to its email.
@@ -72,8 +74,16 @@ export const loginAction = async (_prevState: AuthFormState, formData: FormData)
   const parsed = loginSchema.safeParse({ email: text(formData, 'email'), password: text(formData, 'password') })
   if (!parsed.success) return { success: false, errors: fieldErrors(parsed.error) }
 
+  const verdict = await takeAttempts([
+    ['login', parsed.data.email],
+    ['loginFromAddress', await visitorAddress()],
+  ])
+  if (!verdict.allowed) return { success: false, errors: { form: [tryAgainLater(verdict.retryInMinutes)] } }
+
   try {
-    await authServer.api.signInEmail({ body: parsed.data, headers: await headers() })
+    const { user } = await authServer.api.signInEmail({ body: parsed.data, headers: await headers() })
+    await clearAttempts('login', parsed.data.email)
+    await rememberTimeZone(user.id)
   } catch (error) {
     // The password was right and the email still waits for its code, so the window moves to the code step.
     if (errorCode(error) === 'EMAIL_NOT_VERIFIED') {
@@ -93,6 +103,9 @@ export const registerAction = async (_prevState: AuthFormState, formData: FormDa
   if (!parsed.success) return { success: false, errors: fieldErrors(parsed.error) }
 
   const { email, password } = parsed.data
+
+  const verdict = await takeAttempts([['registerFromAddress', await visitorAddress()]])
+  if (!verdict.allowed) return { success: false, errors: { form: [tryAgainLater(verdict.retryInMinutes)] } }
 
   try {
     const existing = await findAccountConfirmation(email)
@@ -134,6 +147,13 @@ export const confirmEmailAction = async (_prevState: AuthFormState, formData: Fo
 
   const { email, password, code } = parsed.data
 
+  // This step checks the password too, so its tries count as logins.
+  const verdict = await takeAttempts([
+    ['login', email],
+    ['loginFromAddress', await visitorAddress()],
+  ])
+  if (!verdict.allowed) return { success: false, errors: { form: [tryAgainLater(verdict.retryInMinutes)] } }
+
   try {
     const account = await findAccountConfirmation(email)
     if (!account || !(await accountAcceptsPassword(account.userId, password))) {
@@ -143,6 +163,7 @@ export const confirmEmailAction = async (_prevState: AuthFormState, formData: Fo
     if (!account.isConfirmed) await authServer.api.verifyEmailOTP({ body: { email, otp: code }, headers: await headers() })
     // A confirmed account arriving here used the code in another tab. Logging in is all that is left.
     else await authServer.api.signInEmail({ body: { email, password }, headers: await headers() })
+    await clearAttempts('login', email)
   } catch (error) {
     const failure = errorCode(error)
     if (failure === 'INVALID_OTP')
@@ -177,10 +198,17 @@ export const requestPasswordResetAction = async (_prevState: AuthFormState, form
   const parsed = z.object({ email: emailField }).safeParse({ email: text(formData, 'email') })
   if (!parsed.success) return { success: false, errors: fieldErrors(parsed.error) }
 
-  try {
-    await authServer.api.requestPasswordReset({ body: { email: parsed.data.email } })
-  } catch (error) {
-    console.error('Requesting the password reset failed:', error)
+  const fromAddress = await takeAttempts([['passwordResetFromAddress', await visitorAddress()]])
+  if (!fromAddress.allowed) return { success: false, errors: { form: [tryAgainLater(fromAddress.retryInMinutes)] } }
+
+  // Past the limit of one email nothing more is sent, with the same answer, so the limit does not tell whether the account exists.
+  const forEmail = await takeAttempt('passwordReset', parsed.data.email)
+  if (forEmail.allowed) {
+    try {
+      await authServer.api.requestPasswordReset({ body: { email: parsed.data.email } })
+    } catch (error) {
+      console.error('Requesting the password reset failed:', error)
+    }
   }
 
   // The answer is the same whether the account exists or not, so nobody can find out which emails are registered.

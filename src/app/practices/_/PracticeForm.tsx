@@ -18,6 +18,7 @@ export type PracticeFormDefaults = {
   durationMin: number
   mode: PracticeMode
   videoRoom: boolean
+  isPublic: boolean
   location: string
   minParticipants: number
   maxParticipants: number
@@ -33,6 +34,8 @@ type PracticeFormProps = {
   // Where Cancel goes, or what it does when the form lives inside another page.
   cancelHref?: string
   onCancel?: () => void
+  // Values sent with the form that the person does not edit, such as the poll a new practice comes from.
+  hiddenFields?: Record<string, string>
 }
 
 const LOCATION_FIELD: Record<PracticeMode, { label: string; placeholder: string; hint: string }> = {
@@ -49,16 +52,29 @@ const sendStartAsExactInstant = (formData: FormData) => {
   formData.delete('startsAtLocal')
 }
 
-export default function PracticeForm({ action, defaults, viewerZone, submitLabel, pendingLabel, cancelHref, onCancel }: PracticeFormProps) {
+export default function PracticeForm({
+  action,
+  defaults,
+  viewerZone,
+  submitLabel,
+  pendingLabel,
+  cancelHref,
+  onCancel,
+  hiddenFields = {},
+}: PracticeFormProps) {
   const { state, onSubmit, isPending } = useFormAction(action, initialState, sendStartAsExactInstant)
   const [mode, setMode] = useState<PracticeMode>(defaults.mode)
   const [usesRoom, setUsesRoom] = useState(defaults.videoRoom)
+  const [isPublic, setIsPublic] = useState(defaults.isPublic)
   const errors = state.errors ?? {}
   const locationField = LOCATION_FIELD[mode]
   const { title, description, location, participants } = PRACTICE_LIMITS
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-6">
+      {Object.entries(hiddenFields).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
       <Field label="Title" htmlFor="title" error={errors.title?.[0]}>
         <input
           id="title"
@@ -182,6 +198,36 @@ export default function PracticeForm({ action, defaults, viewerZone, submitLabel
           />
         </Field>
       )}
+
+      <fieldset>
+        <legend className="mb-1.5 text-sm font-semibold">Who can open it</legend>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { value: false, label: 'Private' },
+            { value: true, label: 'Public' },
+          ].map((option) => (
+            <label
+              key={option.label}
+              className="flex items-center gap-2 rounded-lg border border-line bg-sheet px-3.5 py-2.5 font-medium has-checked:border-pen has-checked:text-pen has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-pen"
+            >
+              <input
+                type="radio"
+                name="visibilityChoice"
+                checked={isPublic === option.value}
+                onChange={() => setIsPublic(option.value)}
+                className="accent-pen"
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
+        <p className="mt-1.5 text-sm text-muted">
+          {isPublic
+            ? 'Anyone with the link can read this practice with no account and, if it has a Practices room, join the call by typing a name.'
+            : 'Only people with an account can open it.'}
+        </p>
+      </fieldset>
+      {isPublic && <input type="hidden" name="visibility" value="public" />}
 
       <div className="grid gap-6 sm:grid-cols-2">
         <Field

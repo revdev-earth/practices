@@ -20,10 +20,13 @@ model Practice {
   startsAt DateTime
   endsAt   DateTime
 
-  mode     PracticeMode @default(ONLINE)
+  mode      PracticeMode @default(ONLINE)
   // An online practice can use a room of the video service (lives) instead of an external link. Its address is derived, never stored.
   videoRoom Boolean      @default(false)
-  location String       @default("") // Call link or address, depending on the mode
+
+  // A public practice can be opened from its shared link by anyone, with no account. A private one needs an account.
+  isPublic Boolean @default(false)
+  location String  @default("") // Call link or address, depending on the mode
 
   // Reaching minParticipants confirms the practice.
   // Whoever joins after maxParticipants is filled goes on the waitlist.
@@ -34,6 +37,15 @@ model Practice {
   organizer   User   @relation(fields: [organizerId], references: [id], onDelete: Cascade)
 
   signups Signup[]
+
+  // When the host ended the call for everyone. Until then the room stays open past the end while people are in it.
+  roomClosedAt DateTime?
+
+  // Present while the host has the people of the call split into groups.
+  callGroups CallGroups?
+
+  // The poll this practice came from, when its time was chosen by vote.
+  timePoll TimePoll?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -47,6 +59,93 @@ model Practice {
 enum PracticeMode {
   ONLINE
   IN_PERSON
+}
+
+// ========================================
+// TIME POLLS
+// ========================================
+
+// A poll to find the best time for a practice. The host proposes times, anyone with the link answers each one,
+// and the host posts the practice at the time that works. See src/lib/timePolls.ts.
+model TimePoll {
+  id String @id @default(cuid())
+
+  title       String
+  description String @default("")
+  durationMin Int
+
+  organizerId String
+  organizer   User   @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+
+  options TimePollOption[]
+
+  // The practice posted from the poll. Once it exists the poll takes no more answers.
+  practiceId String?   @unique
+  practice   Practice? @relation(fields: [practiceId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizerId])
+  @@map("time_polls")
+}
+
+model TimePollOption {
+  id String @id @default(cuid())
+
+  pollId   String
+  startsAt DateTime
+
+  poll  TimePoll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes TimePollVote[]
+
+  @@index([pollId])
+  @@map("time_poll_options")
+}
+
+enum PollAnswer {
+  YES
+  IF_NEEDED
+  NO
+}
+
+// One person's answer to one time. A person is "user:<id>" with an account, or "guest:<uuid>" from a cookie without one.
+model TimePollVote {
+  id String @id @default(cuid())
+
+  optionId String
+  voterKey String
+  // Present when the person voted with an account. They are signed up when the practice is posted at a time they said yes to.
+  userId   String?
+  name     String
+  answer   PollAnswer
+
+  option TimePollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([optionId, voterKey])
+  @@index([userId])
+  @@map("time_poll_votes")
+}
+
+// The groups of a video call. Each group talks in a room of its own and group 0 is the main room.
+// See src/lib/callGroups.ts.
+model CallGroups {
+  practiceId String @id
+
+  groupCount  Int
+  // JSON with one entry per person of the call: { "<identity>": { "name": "Dana Reyes", "group": 2 } }.
+  assignments String
+
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("call_groups")
 }
 
 model Signup {
@@ -81,10 +180,15 @@ model User {
   // When the last email confirmation code went out. It limits how often a new one can be requested.
   confirmationCodeSentAt DateTime?
 
+  // The zone of the browser the person last used, from the tz cookie. Emails are built with no browser, so they write times in this zone.
+  timeZone String?
+
   sessions  Session[]
   accounts  Account[]
   practices Practice[]
   signups   Signup[]
+  timePolls TimePoll[]
+  pollVotes TimePollVote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -131,6 +235,18 @@ model Account {
 
   @@index([userId])
   @@map("accounts")
+}
+
+// How many times something was tried inside a window of time, such as logging in to one email or asking for a reset link
+// from one address. See src/lib/attemptLimits.ts.
+model AttemptCounter {
+  // Kind and subject, as "login:dana@practices.test".
+  key            String   @id
+  count          Int
+  windowStartsAt DateTime
+
+  @@index([windowStartsAt]) // Drop the old windows
+  @@map("attempt_counters")
 }
 
 // Temporary tokens, such as the password reset one and the email confirmation code.

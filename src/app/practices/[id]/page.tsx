@@ -3,13 +3,15 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import AddToCalendar from '+/components/AddToCalendar'
 import StatusMark from '+/components/StatusMark'
 import { updatePracticeAction } from '+/actions/practices'
 import { requireUser } from '+/lib/auth'
 import { dayKey, formatDuration, formatLongDate, formatTime, formatZone, formatZoneCity, toDateTimeLocal } from '+/lib/dates'
+import { roomStateOf } from '+/lib/livekit'
 import { getPractice, type PracticeView } from '+/lib/practices'
 import { isWebLink, MODE_LABELS } from '+/lib/practiceRules'
-import { calendarPath } from '+/lib/redirects'
+import { absoluteUrl, calendarPath, roomPath, shareablePracticePath } from '+/lib/redirects'
 import { getTimeZone } from '+/lib/timezone'
 
 import CopySummaryButton from '../_/CopySummaryButton'
@@ -20,8 +22,6 @@ import Roster from '../_/Roster'
 
 export const metadata: Metadata = { title: 'Practice' }
 
-const appUrl = () => process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-
 // On a phone the label sits right above its value. From tablet up they share a line.
 const DETAIL_ROW = 'grid gap-1 sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-6'
 const DETAIL_LABEL = 'text-sm font-semibold text-muted sm:pt-0.5'
@@ -30,7 +30,7 @@ const timeRange = (practice: PracticeView, timeZone: string) =>
   `${formatTime(practice.startsAt, timeZone)} to ${formatTime(practice.endsAt, timeZone)} (${formatZone(practice.startsAt, timeZone)})`
 
 // The room of the practice in lives when it has one, else what the host typed.
-const where = (practice: PracticeView) => (practice.roomAvailable ? `${appUrl()}/practices/${practice.id}/room` : practice.location)
+const where = (practice: PracticeView) => (practice.roomAvailable ? absoluteUrl(roomPath(practice.id)) : practice.location)
 
 // Text for the group chat. The time carries the zone of whoever copies it and the link shows it to each person in their own.
 const shareableSummary = (practice: PracticeView, timeZone: string) =>
@@ -39,7 +39,7 @@ const shareableSummary = (practice: PracticeView, timeZone: string) =>
     `${formatLongDate(practice.startsAt, timeZone)}, ${timeRange(practice, timeZone)}`,
     where(practice) ? `${MODE_LABELS[practice.mode]}: ${where(practice)}` : MODE_LABELS[practice.mode],
     `Group (${practice.confirmed.length} of ${practice.maxParticipants}): ${practice.confirmed.map((person) => person.name).join(', ')}`,
-    `See it in your own time zone: ${appUrl()}/practices/${practice.id}`,
+    `See it in your own time zone: ${absoluteUrl(shareablePracticePath(practice))}`,
   ].join('\n')
 
 const viewerPlaceText = (practice: PracticeView) => {
@@ -60,6 +60,8 @@ export default async function PracticePage({ params }: PracticePageProps) {
   if (!practice) notFound()
 
   const isPast = practice.status === 'past'
+  // After the end the room only matters while the call goes on.
+  const roomState = practice.roomAvailable && isPast ? await roomStateOf(practice) : null
   const placeText = viewerPlaceText(practice)
   const defaults: PracticeFormDefaults = {
     title: practice.title,
@@ -69,6 +71,7 @@ export default async function PracticePage({ params }: PracticePageProps) {
     mode: practice.mode,
     location: practice.location,
     videoRoom: practice.videoRoom,
+    isPublic: practice.isPublic,
     minParticipants: practice.minParticipants,
     maxParticipants: practice.maxParticipants,
   }
@@ -114,10 +117,15 @@ export default async function PracticePage({ params }: PracticePageProps) {
                     <dt className={DETAIL_LABEL}>Where</dt>
                     <dd>
                       <p className="font-semibold">{MODE_LABELS[practice.mode]}</p>
-                      {practice.roomAvailable ? (
-                        <Link href={`/practices/${practice.id}/room`} className="button button-primary mt-2">
-                          Open the Practices room
-                        </Link>
+                      {practice.roomAvailable && roomState === 'closed' ? (
+                        <p className="text-sm text-muted">{practice.roomClosedAt ? 'The host ended the call.' : 'The call ended.'}</p>
+                      ) : practice.roomAvailable ? (
+                        <>
+                          {roomState === 'open' && <p className="text-sm font-medium">The time is up and the call is still going.</p>}
+                          <Link href={`/practices/${practice.id}/room`} className="button button-primary mt-2">
+                            Open the Practices room
+                          </Link>
+                        </>
                       ) : practice.videoRoom ? (
                         <p className="text-sm text-muted">The Practices room is not available right now.</p>
                       ) : isWebLink(practice.location) ? (
@@ -131,6 +139,16 @@ export default async function PracticePage({ params }: PracticePageProps) {
                           {practice.mode === 'ONLINE' ? 'The host has not added the call link yet.' : 'The host has not added the place yet.'}
                         </p>
                       )}
+                    </dd>
+                  </div>
+
+                  <div className={DETAIL_ROW}>
+                    <dt className={DETAIL_LABEL}>Access</dt>
+                    <dd>
+                      <p className="font-semibold">{practice.isPublic ? 'Public' : 'Private'}</p>
+                      <p className="text-sm text-muted">
+                        {practice.isPublic ? 'Anyone with the link can read it, with no account.' : 'Only people with an account can open it.'}
+                      </p>
                     </dd>
                   </div>
 
@@ -157,6 +175,7 @@ export default async function PracticePage({ params }: PracticePageProps) {
                   <MembershipButton practiceId={practice.id} place={practice.viewer.place} isFull={practice.status === 'full'} />
                   <CopySummaryButton summary={shareableSummary(practice, timeZone)} />
                 </div>
+                <AddToCalendar practice={practice} audience="member" icsHref={`/practices/${practice.id}/event.ics`} className="mt-5" />
               </>
             )}
           </div>

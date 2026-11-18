@@ -25,6 +25,10 @@ export const formatZone = (date: Date, timeZone: string) =>
 // "America/Argentina/Buenos_Aires" reads as "Buenos Aires".
 export const formatZoneCity = (timeZone: string) => (timeZone.split('/').pop() ?? timeZone).replaceAll('_', ' ')
 
+// "Thu, Nov 26, 19:00", where a table has little room.
+export const formatShortDateTime = (date: Date, timeZone: string) =>
+  `${format(date, timeZone, { weekday: 'short', month: 'short', day: 'numeric' })}, ${formatTime(date, timeZone)}`
+
 export const formatDuration = (minutes: number) => {
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
@@ -107,6 +111,31 @@ export const calendarWeeks = (month: string): string[][] => {
   const firstDayShown = shiftDayKey(`${month}-01`, -daysBeforeTheFirst)
 
   return Array.from({ length: weekCount }, (_, week) => Array.from({ length: 7 }, (_, weekday) => shiftDayKey(firstDayShown, week * 7 + weekday)))
+}
+
+// The Monday of the week that holds the day.
+export const weekStartDayKey = (day: string) => shiftDayKey(day, -((dayKeyToUtc(day).getUTCDay() + 6) % 7))
+
+// The seven days of the week that holds the day, Monday first.
+export const weekDayKeys = (day: string) => Array.from({ length: 7 }, (_, index) => shiftDayKey(weekStartDayKey(day), index))
+
+// "November 16 to 22, 2026", "November 30 to December 6, 2026" or "December 28, 2026 to January 3, 2027".
+export const formatWeekHeading = (firstDay: string, lastDay: string) => {
+  const dayOf = (key: string, options: Intl.DateTimeFormatOptions) => format(dayKeyToUtc(key), 'UTC', options)
+  const sameYear = firstDay.slice(0, 4) === lastDay.slice(0, 4)
+  if (!sameYear)
+    return `${dayOf(firstDay, { month: 'long', day: 'numeric', year: 'numeric' })} to ${dayOf(lastDay, { month: 'long', day: 'numeric', year: 'numeric' })}`
+  const end = monthKey(firstDay) === monthKey(lastDay) ? dayOf(lastDay, { day: 'numeric' }) : dayOf(lastDay, { month: 'long', day: 'numeric' })
+  return `${dayOf(firstDay, { month: 'long', day: 'numeric' })} to ${end}, ${lastDay.slice(0, 4)}`
+}
+
+// "Thu 19", the label of a day in the header of the week.
+export const formatWeekdayAndDay = (day: string) => `${format(dayKeyToUtc(day), 'UTC', { weekday: 'short' })} ${Number(day.slice(8))}`
+
+// Minutes since midnight on the wall clock of that zone, as the week sheet draws them.
+export const minutesIntoDay = (date: Date, timeZone: string) => {
+  const wallClock = toDateTimeLocal(date, timeZone)
+  return Number(wallClock.slice(11, 13)) * 60 + Number(wallClock.slice(14, 16))
 }
 
 const HOUR_MS = 60 * 60 * 1000
